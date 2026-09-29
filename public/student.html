@@ -544,6 +544,7 @@
 </div>
 
 <script src="media.js"></script>
+<script src="password-eye.js"></script>
 
 <script>
 /* ============================================================
@@ -692,6 +693,15 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
 
   try {
     const data = await apiFetch("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) });
+    // نفس خانة الدخول للمشرف كمان: لو الحساب مشرف نوديه لوحته
+    if (data.role === "admin") {
+      try {
+        localStorage.setItem("rasokh_token", data.token);
+        localStorage.setItem("rasokh_role", "admin");
+      } catch (e) {}
+      window.location.href = "admin.html";
+      return;
+    }
     authToken = data.token;
     try {
       localStorage.setItem("rasokh_token", data.token);

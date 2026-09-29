@@ -77,8 +77,19 @@ router.post("/register", (req, res) => {
   res.status(201).json({ token: signToken({ id, role: "student" }), student: { id, full_name, email } });
 });
 
-// دخول عام للطالب والمشرف مع حد للمحاولات الغلط
-function login(table, role, wrongMsg) {
+const TABLES = { admin: "admins", student: "students" };
+
+// هاش وهمي: لو البريد مش موجود بنقارن بيه برضه، عشان وقت الرد ما يكشفش مين عنده حساب
+const DUMMY_HASH = bcrypt.hashSync("rasokh-no-such-account", 10);
+
+function findAccount(role, email, password) {
+  const user = db.prepare(`SELECT * FROM ${TABLES[role]} WHERE lower(email) = ?`).get(email);
+  const ok = bcrypt.compareSync(password, user ? user.password_hash : DUMMY_HASH);
+  return ok && user ? user : null;
+}
+
+// دخول مع حد للمحاولات الغلط. roles بالترتيب: أول حساب كلمة مروره صح هو اللي بيدخل.
+function login(roles, wrongMsg) {
   return (req, res) => {
     const email = normEmail(req.body.email);
     const password = typeof req.body.password === "string" ? req.body.password : "";
@@ -86,28 +97,34 @@ function login(table, role, wrongMsg) {
       return res.status(400).json({ error: "البريد وكلمة المرور مطلوبان." });
     }
 
-    const key = role + ":" + email;
-    const wait = failedLogins.blockedFor(key);
+    const wait = failedLogins.blockedFor(email);
     if (wait) {
       return res.status(429).json({ error: `محاولات دخول خاطئة كثيرة، حاول مرة أخرى بعد ${wait} دقيقة.` });
     }
 
-    const user = db.prepare(`SELECT * FROM ${table} WHERE lower(email) = ?`).get(email);
-    if (!user || !bcrypt.compareSync(password, user.password_hash)) {
-      failedLogins.hit(key);
+    let user = null, role = null;
+    for (const r of roles) {
+      user = findAccount(r, email, password);
+      if (user) { role = r; break; }
+    }
+    if (!user) {
+      failedLogins.hit(email);
       return res.status(401).json({ error: wrongMsg });
     }
     if (role === "student" && user.is_blocked) {
       return res.status(403).json({ error: "تم إيقاف هذا الحساب، يرجى التواصل مع الإدارة." });
     }
 
-    failedLogins.reset(key);
+    failedLogins.reset(email);
     const profile = { id: user.id, full_name: user.full_name, email: user.email };
-    res.json({ token: signToken({ id: user.id, role }), [role]: profile });
+    res.json({ token: signToken({ id: user.id, role }), role, [role]: profile });
   };
 }
 
-router.post("/login", login("students", "student", "البريد الإلكتروني أو كلمة المرور غير صحيحة."));
-router.post("/admin-login", login("admins", "admin", "بيانات دخول المشرف غير صحيحة."));
+// دخول واحد للكل: المشرف يروح لوحة المشرف، والطالب صفحته.
+// لو نفس البريد ليه حساب مشرف وحساب طالب، كلمة المرور هي اللي بتحدد (المشرف الأول).
+router.post("/login", login(["admin", "student"], "البريد الإلكتروني أو كلمة المرور غير صحيحة."));
+// دخول المشرف بس (متساب للسكريبتات والاختبارات)
+router.post("/admin-login", login(["admin"], "بيانات دخول المشرف غير صحيحة."));
 
 module.exports = { router, MIN_PASSWORD };

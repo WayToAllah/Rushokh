@@ -52,10 +52,16 @@ async function call(method, path, { token, body, headers } = {}) {
   check("دخول المشرف (البريد بحروف كبيرة يشتغل)", admin.status === 200, admin.status);
   const A = admin.data && admin.data.token;
 
+  const oneBox = await call("POST", "/auth/login", { headers: ip(), body: { email: "admin@rasokh.test", password: "admin123" } });
+  check("خانة الدخول الواحدة بتدخّل المشرف كمشرف", oneBox.status === 200 && oneBox.data.role === "admin", oneBox.data && oneBox.data.role);
+
   // ---------- طالب جديد يمشي في المراحل ----------
   const reg = await call("POST", "/auth/register", { headers: ip(), body: { full_name: "<img src=x onerror=alert(1)>", email: `stu${uniq}@t.com`, password: "password123" } });
   check("تسجيل طالب جديد", reg.status === 201, reg.status);
   const T = reg.data.token;
+
+  const stuLogin = await call("POST", "/auth/login", { headers: ip(), body: { email: `stu${uniq}@t.com`, password: "password123" } });
+  check("نفس الخانة بتدخّل الطالب كطالب", stuLogin.status === 200 && stuLogin.data.role === "student", stuLogin.data && stuLogin.data.role);
 
   let cur = await call("GET", "/curriculum", { token: T });
   let current = cur.data.stages.find(s => s.status === "current");
