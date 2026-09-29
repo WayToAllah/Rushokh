@@ -2,6 +2,7 @@
 const express = require("express");
 const db = require("../db/database");
 const { requireAuth, requireRole } = require("../middleware/auth");
+const sp = require("../lib/stage-progress");
 
 const router = express.Router();
 
@@ -29,7 +30,7 @@ function buildSubjectsForStage(stageId, studentId) {
       ).all(studentId, s.id);
 
       const books = db.prepare(
-        `SELECT b.id, b.title, b.total_pages,
+        `SELECT b.id, b.title, b.total_pages, b.file_url,
                 COALESCE(p.current_page, 0) AS current_page
          FROM books b
          LEFT JOIN student_book_progress p
@@ -37,20 +38,23 @@ function buildSubjectsForStage(stageId, studentId) {
          WHERE b.series_id = ? `
       ).all(studentId, s.id);
 
-      const test = db.prepare(
-        `SELECT id, title, pass_percent FROM tests WHERE series_id = ? LIMIT 1`
-      ).get(s.id);
+      // كل اختبارات السلسلة اللي فيها أسئلة، مع آخر نتيجة وهل نجح فيها قبل كده
+      const tests = db.prepare(
+        `SELECT t.id, t.title, t.pass_percent FROM tests t
+         WHERE t.series_id = ? AND EXISTS (SELECT 1 FROM questions q WHERE q.test_id = t.id)
+         ORDER BY t.id ASC`
+      ).all(s.id).map(t => {
+        const last = db.prepare(
+          `SELECT score FROM student_test_attempts
+           WHERE student_id = ? AND test_id = ? ORDER BY id DESC LIMIT 1`
+        ).get(studentId, t.id);
+        const everPassed = db.prepare(
+          `SELECT 1 FROM student_test_attempts WHERE student_id = ? AND test_id = ? AND passed = 1 LIMIT 1`
+        ).get(studentId, t.id);
+        return { ...t, last_score: last ? last.score : null, passed: !!everPassed };
+      });
 
-      let testPayload = null;
-      if (test) {
-        const lastAttempt = db.prepare(
-          `SELECT score, passed FROM student_test_attempts
-           WHERE student_id = ? AND test_id = ? ORDER BY attempted_at DESC LIMIT 1`
-        ).get(studentId, test.id);
-        testPayload = { ...test, last_score: lastAttempt ? lastAttempt.score : null };
-      }
-
-      return { id: s.id, name: s.name, episodes, books, test: testPayload };
+      return { id: s.id, name: s.name, episodes, books, tests };
     });
 
     return { id: subj.subject_id, name: subj.name, icon: subj.icon, series };
@@ -62,21 +66,23 @@ router.get("/", requireAuth, requireRole("student"), (req, res) => {
   const student = db.prepare(`SELECT * FROM students WHERE id = ?`).get(req.user.id);
   if (!student) return res.status(404).json({ error: "الطالب غير موجود." });
 
-  const allStages = db.prepare(`SELECT * FROM stages ORDER BY order_index ASC`).all();
-  const currentOrder = student.current_stage_id
-    ? (db.prepare(`SELECT order_index FROM stages WHERE id = ?`).get(student.current_stage_id) || {}).order_index
-    : -1;
+  sp.advanceIfComplete(student.id); // لو المرحلة اكتملت (مثلاً اتحذف محتوى باقي) ينقله
+  const current = sp.ensureCurrentStage(student.id);
+  const ids = sp.orderedStageIds();
+  const currentIdx = current ? ids.indexOf(current.id) : -1;
+  const allStages = db.prepare(`SELECT * FROM stages ORDER BY order_index ASC, id ASC`).all();
 
-  const stages = allStages.map(stage => {
+  const stages = allStages.map((stage, idx) => {
     let status;
-    if (stage.order_index < currentOrder) status = "completed";
-    else if (stage.order_index === currentOrder) status = "current";
+    if (idx < currentIdx) status = "completed";
+    else if (idx === currentIdx) status = "current";
     else status = "locked";
 
     return {
       id: stage.id,
       name: stage.name,
       status,
+      progress: status === "locked" ? null : sp.stageProgress(student.id, stage.id),
       subjects: status === "locked" ? [] : buildSubjectsForStage(stage.id, student.id)
     };
   });

@@ -310,9 +310,11 @@
   }
   @keyframes pop{from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:translateY(0)}}
   .modal-close{
-    position:absolute; top:16px; left:16px;
-    background:none; border:none; font-size:1.3rem; color:var(--ink-soft);
+    position:absolute; top:10px; left:10px; z-index:2;
+    width:36px; height:36px; border-radius:50%;
+    background:var(--bg-raised); border:none; font-size:1.2rem; color:var(--ink-soft);
   }
+  .modal-close:hover{ background:var(--line-soft); }
   .modal h2{color:var(--teal-900); margin-top:0;}
 
   /* Test modal */
@@ -377,6 +379,29 @@
   }
   .print-btn{margin-top:20px;}
 
+
+  /* ===== إضافات: روابط، مرحلة معروضة، شريط المرحلة، إشعار ===== */
+  a.item-icon.link{ text-decoration:none; background:var(--teal-700); color:#fff; cursor:pointer; }
+  a.item-icon.link:hover{ background:var(--teal-900); }
+  .sanad-node.viewing .label{ text-decoration:underline; text-underline-offset:4px; text-decoration-color:var(--gold); }
+  .stage-banner{
+    background:var(--bg-raised); border:1px solid var(--line); border-radius:14px;
+    padding:14px 18px; display:flex; flex-direction:column; gap:4px; box-shadow:var(--shadow);
+  }
+  .stage-banner strong{ font-family:'Amiri', serif; font-size:1.1rem; color:var(--teal-900); }
+  .stage-banner span{ font-size:.82rem; color:var(--ink); }
+  .stage-banner small{ font-size:.75rem; color:var(--ink-soft); }
+  .stage-banner a{ color:var(--teal-700); }
+  .certificate .cert-no{ font-size:.72rem; color:var(--ink-soft); letter-spacing:1px; margin:0; }
+  .toast{
+    position:fixed; bottom:24px; right:50%; transform:translate(50%, 20px);
+    background:var(--teal-900); color:var(--bg-raised); padding:12px 20px; border-radius:12px;
+    font-size:.88rem; box-shadow:var(--shadow); opacity:0; pointer-events:none;
+    transition:opacity .25s ease, transform .25s ease; z-index:80; max-width:calc(100% - 32px); text-align:center;
+  }
+  .toast.show{ opacity:1; transform:translate(50%, 0); }
+  @media (prefers-reduced-motion: reduce){ .toast{ transition:none; } }
+
   @media print{
     body *{visibility:hidden;}
     #certModal, #certModal *{visibility:visible;}
@@ -397,7 +422,7 @@
 <header class="topbar">
   <div class="brand">رسوخ <small>أكاديمية العلم الشرعي</small></div>
   <div class="student-info">
-    <span class="student-name" id="studentNameLbl">أحمد بن سالم العتيبي</span>
+    <span class="student-name" id="studentNameLbl"></span>
     <button class="pill-btn solid" id="btnReport">📊 تقريري</button>
     <button class="pill-btn" id="btnLogout">تسجيل خروج</button>
   </div>
@@ -438,7 +463,7 @@
 
 
 <!-- Login Gate (يظهر أولاً حتى يسجل الطالب دخوله عبر الباك إند الحقيقي) -->
-<div class="overlay show" id="loginOverlay">
+<div class="overlay" id="loginOverlay">
   <div class="modal" style="max-width:380px;">
     <h2>تسجيل الدخول</h2>
     <div id="loginError" style="color:var(--terracotta); font-size:.85rem; margin-bottom:10px; display:none;"></div>
@@ -451,9 +476,8 @@
         style="width:100%; padding:10px; margin:6px 0 18px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:.9rem;">
       <button type="submit" class="tiny-btn" id="loginSubmitBtn" style="width:100%; padding:12px; font-size:.9rem;">دخول</button>
     </form>
-    <p style="font-size:.72rem; color:var(--ink-soft); margin-top:14px; line-height:1.7;">
-      للتجربة: <strong>ahmed@rasokh.test</strong> / <strong>student123</strong><br>
-      تأكد أن الباك إند شغّال على <code>http://localhost:4000</code>
+    <p style="font-size:.78rem; color:var(--ink-soft); margin-top:14px;">
+      ليس لديك حساب؟ <a href="index.html">سجّل من الصفحة الرئيسية</a>
     </p>
   </div>
 </div>
@@ -465,36 +489,92 @@
   </div>
 </div>
 
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
 <script>
 /* ============================================================
-   الاتصال بالباك إند الحقيقي (rasokh-backend) بدل بيانات mock
+   صفحة الطالب — متصلة بالسيرفر عبر /api
    ============================================================ */
 const API_BASE = "/api"; // نسبي: يعمل محليًا وبعد النشر بدون تعديل
 
-// التوكن يُحفظ في localStorage ليُستقبل من صفحة index.html عند تسجيل الدخول هناك،
-// ولتبقى الجلسة عند تحديث الصفحة. (ملاحظة: داخل معاينة Claude.ai نفسها قد لا يعمل
-// التخزين المحلي، لكنه يعمل بشكل طبيعي عند فتح الملفات فعليًا من متصفح حقيقي).
-let authToken = localStorage.getItem("rasokh_token") || null;
-let curriculumData = null; // { student_name, stages: [...] } كما يعيدها /api/curriculum
+let authToken = null;
+try { authToken = localStorage.getItem("rasokh_token"); } catch (e) {}
+let curriculumData = null; // { student_name, stages: [...] }
+let viewStageId = null;    // المرحلة المعروضة حاليًا (الحالية افتراضيًا، أو مرحلة مكتملة اختارها الطالب)
+const openSubjects = new Set(); // الأقسام المفتوحة، عشان ما تتقفلش لما الصفحة تتحدث
+
+/* ======================= أدوات الأمان ======================= */
+// أي نص جاي من السيرفر (أسماء، عناوين، أسئلة...) لازم يعدّي على esc قبل ما يتحط في HTML
+function esc(v) {
+  return String(v === null || v === undefined ? "" : v)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+// الروابط: http/https بس
+function safeHref(url) {
+  try {
+    const u = new URL(url, window.location.href);
+    return (u.protocol === "http:" || u.protocol === "https:") ? u.href : null;
+  } catch (e) { return null; }
+}
+
+function clearSession() {
+  authToken = null;
+  try { localStorage.removeItem("rasokh_token"); localStorage.removeItem("rasokh_role"); } catch (e) {}
+}
+
+class ApiError extends Error {
+  constructor(message, status) { super(message); this.status = status; }
+}
 
 async function apiFetch(path, options = {}) {
-  const res = await fetch(API_BASE + path, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(authToken ? { Authorization: "Bearer " + authToken } : {}),
-      ...(options.headers || {}),
-    },
-  });
-  let data = {};
-  try { data = await res.json(); } catch (e) { /* استجابة بلا محتوى */ }
-  if (!res.ok) {
-    throw new Error(data.error || "تعذّر الاتصال بالخادم، تأكد أن الباك إند يعمل.");
+  let res;
+  try {
+    res = await fetch(API_BASE + path, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(authToken ? { Authorization: "Bearer " + authToken } : {}),
+        ...(options.headers || {}),
+      },
+    });
+  } catch (e) {
+    throw new ApiError("تعذّر الاتصال بالخادم، تأكد من اتصالك بالإنترنت.", 0);
   }
+  let data = {};
+  try { data = await res.json(); } catch (e) {}
+  if (!res.ok) throw new ApiError(data.error || "حدث خطأ غير متوقع.", res.status);
   return data;
 }
 
+// لو الجلسة انتهت أو الحساب اتمنع: نرجّع شاشة الدخول
+function handleAuthError(err) {
+  if (err && (err.status === 401 || err.status === 403) && !(err.message || "").includes("مرحلة")) {
+    clearSession();
+    showLogin(err.status === 403 ? err.message : "انتهت الجلسة، الرجاء تسجيل الدخول مجددًا.");
+    return true;
+  }
+  return false;
+}
+
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove("show"), 5000);
+}
+
 /* ======================= تسجيل الدخول ======================= */
+function showLogin(message) {
+  document.getElementById("curriculumRoot").innerHTML = "";
+  document.getElementById("sanadChain").innerHTML = "";
+  const box = document.getElementById("loginError");
+  if (message) { box.textContent = message; box.style.display = "block"; }
+  else box.style.display = "none";
+  document.getElementById("loginOverlay").classList.add("show");
+}
+
 document.getElementById("loginForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const email = document.getElementById("loginEmail").value.trim();
@@ -506,15 +586,15 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
   submitBtn.disabled = true;
 
   try {
-    const data = await apiFetch("/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    });
+    const data = await apiFetch("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) });
     authToken = data.token;
-    localStorage.setItem("rasokh_token", data.token);
-    localStorage.setItem("rasokh_role", "student");
+    try {
+      localStorage.setItem("rasokh_token", data.token);
+      localStorage.setItem("rasokh_role", "student");
+    } catch (e) {}
     document.getElementById("studentNameLbl").textContent = data.student.full_name;
     document.getElementById("loginOverlay").classList.remove("show");
+    viewStageId = null;
     await loadCurriculum();
   } catch (err) {
     errorBox.textContent = err.message;
@@ -527,43 +607,25 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
 
 document.getElementById("btnLogout").addEventListener("click", () => {
   if (!confirm("هل تريد تسجيل الخروج؟")) return;
-  authToken = null;
-  curriculumData = null;
-  localStorage.removeItem("rasokh_token");
-  localStorage.removeItem("rasokh_role");
+  clearSession();
   window.location.href = "index.html";
 });
 
-// إن كان الطالب قد سجّل دخوله بالفعل من index.html (أو من جلسة سابقة)، نتخطى شاشة
-// الدخول ونحاول جلب المنهج مباشرة. لو التوكن منتهي أو غير صالح، تُعرض شاشة الدخول.
-async function tryResumeSession() {
-  if (!authToken) return;
-  document.getElementById("loginOverlay").classList.remove("show");
-  try {
-    await loadCurriculum();
-    const name = curriculumData ? curriculumData.student_name : null;
-    if (name) document.getElementById("studentNameLbl").textContent = name;
-  } catch (err) {
-    authToken = null;
-    localStorage.removeItem("rasokh_token");
-    localStorage.removeItem("rasokh_role");
-    document.getElementById("loginOverlay").classList.add("show");
-  }
-}
-tryResumeSession();
-
-/* ======================= جلب المنهج من الباك إند ======================= */
+/* ======================= جلب المنهج ======================= */
 async function loadCurriculum() {
   document.getElementById("loadingOverlay").classList.add("show");
   try {
     curriculumData = await apiFetch("/curriculum");
+    document.getElementById("studentNameLbl").textContent = curriculumData.student_name;
+    const viewed = curriculumData.stages.find(s => s.id === viewStageId);
+    if (!viewed || viewed.status === "locked") viewStageId = null;
     renderSanad();
     renderCurriculum();
-    const firstSubjectCard = document.querySelector(".subject-card");
-    if (firstSubjectCard) firstSubjectCard.classList.add("open");
   } catch (err) {
-    document.getElementById("curriculumRoot").innerHTML =
-      `<p style="color:var(--terracotta); text-align:center;">${err.message}</p>`;
+    if (!handleAuthError(err)) {
+      document.getElementById("curriculumRoot").innerHTML =
+        `<p style="color:var(--terracotta); text-align:center;">${esc(err.message)}</p>`;
+    }
   } finally {
     document.getElementById("loadingOverlay").classList.remove("show");
   }
@@ -572,32 +634,51 @@ async function loadCurriculum() {
 function currentStage() {
   return curriculumData ? curriculumData.stages.find(s => s.status === "current") : null;
 }
+function viewedStage() {
+  if (!curriculumData) return null;
+  return curriculumData.stages.find(s => s.id === viewStageId) || currentStage();
+}
 
-/* ======================= أدوات مساعدة لحساب النسب ======================= */
+// بعد أي تقدم: لو السيرفر قال إن الطالب عدّى لمرحلة جديدة، نفرح معاه ونعيد التحميل
+async function afterProgress(result) {
+  if (result && result.advanced_to) {
+    toast(`🎉 مبارك! أتممت المرحلة وانتقلت إلى مرحلة ${result.advanced_to}`);
+    viewStageId = null;
+    await loadCurriculum();
+    return true;
+  }
+  return false;
+}
+
+/* ======================= أدوات حساب النسب ======================= */
 function subjectPercent(subject) {
   let total = 0, done = 0;
   subject.series.forEach(s => {
     s.episodes.forEach(e => { total++; if (e.listened) done++; });
-    s.books.forEach(b => { total++; if (b.current_page >= b.total_pages && b.total_pages > 0) done++; });
+    s.books.forEach(b => { total++; if (b.total_pages === 0 || b.current_page >= b.total_pages) done++; });
+    s.tests.forEach(t => { total++; if (t.passed) done++; });
   });
-  if (total === 0) return 0;
-  return Math.round((done / total) * 100);
+  return total === 0 ? 0 : Math.round((done / total) * 100);
 }
 
-/* ======================= رسم سلسلة المراحل (السند) ======================= */
+/* ======================= سلسلة المراحل (السند) ======================= */
 function renderSanad() {
   const el = document.getElementById("sanadChain");
   el.innerHTML = "";
+  const viewed = viewedStage();
   curriculumData.stages.forEach((stage, idx) => {
     const node = document.createElement("button");
-    node.className = "sanad-node " + stage.status;
-    node.innerHTML = `<div class="bead">${idx + 1}</div><div class="label">${stage.name}</div>`;
-    node.title = stage.status === "locked" ? "لم تفتح بعد" : "عرض محتوى المرحلة";
+    node.className = "sanad-node " + stage.status + (viewed && viewed.id === stage.id ? " viewing" : "");
+    node.innerHTML = `<div class="bead">${stage.status === "completed" ? "✓" : idx + 1}</div><div class="label">${esc(stage.name)}</div>`;
+    node.title = stage.status === "locked" ? "تُفتح بعد إتمام المرحلة التي قبلها" : "عرض محتوى المرحلة";
     node.addEventListener("click", () => {
       if (stage.status === "locked") {
-        alert("تفتح هذه المرحلة بعد إتمام المرحلة التي قبلها.");
+        toast("تُفتح هذه المرحلة تلقائيًا بعد إتمام المرحلة التي قبلها.");
         return;
       }
+      viewStageId = stage.status === "current" ? null : stage.id;
+      renderSanad();
+      renderCurriculum();
       document.getElementById("curriculumRoot").scrollIntoView({ behavior: "smooth" });
     });
     el.appendChild(node);
@@ -609,21 +690,59 @@ function renderSanad() {
   });
 }
 
-/* ======================= رسم المنهج (المرحلة الحالية) ======================= */
+/* ======================= المنهج (المرحلة المعروضة) ======================= */
+function stageBanner(stage) {
+  const p = stage.progress || {};
+  const parts = [
+    `${p.episodes_done || 0} من ${p.episodes_total || 0} حلقة`,
+    `${p.books_done || 0} من ${p.books_total || 0} كتاب`,
+  ];
+  if (p.tests_total) parts.push(`${p.tests_passed} من ${p.tests_total} اختبار`);
+  const title = stage.status === "completed"
+    ? `مرحلة ${esc(stage.name)} — مكتملة ✓`
+    : `مرحلة ${esc(stage.name)} — ${p.percent || 0}%`;
+  const hint = stage.status === "current"
+    ? `<small>تنتقل للمرحلة التالية تلقائيًا بعد سماع كل الحلقات، وإنهاء كل الكتب، والنجاح في كل الاختبارات.</small>`
+    : `<small>أنت تستعرض مرحلة سابقة. <a href="#" id="backToCurrent">ارجع للمرحلة الحالية</a></small>`;
+  return `<div class="stage-banner"><strong>${title}</strong><span>${parts.join(" · ")}</span>${hint}</div>`;
+}
+
+// لو مفيش ولا قسم مفتوح في المرحلة المعروضة، نفتح أول قسم
+function openFirstSubjectIfNone() {
+  const stage = viewedStage();
+  if (!stage || !stage.subjects.length) return;
+  if (![...openSubjects].some(k => k.startsWith(stage.id + ":"))) {
+    openSubjects.add(stage.id + ":" + stage.subjects[0].id);
+  }
+}
+
 function renderCurriculum() {
+  openFirstSubjectIfNone();
   const root = document.getElementById("curriculumRoot");
   root.innerHTML = "";
-  const stage = currentStage();
-  if (!stage) { root.innerHTML = "<p>لا توجد مرحلة نشطة حالياً.</p>"; return; }
+  const stage = viewedStage();
+  document.getElementById("btnCertificate").textContent = stage ? `🏆 شهادة مرحلة ${stage.name}` : "🏆 شهادة المرحلة";
+  if (!stage) { root.innerHTML = `<p style="text-align:center;">لا توجد مراحل بعد.</p>`; return; }
+
+  root.insertAdjacentHTML("beforeend", stageBanner(stage));
+  const back = document.getElementById("backToCurrent");
+  if (back) back.addEventListener("click", (e) => {
+    e.preventDefault();
+    viewStageId = null;
+    renderSanad();
+    renderCurriculum();
+  });
 
   if (stage.subjects.length === 0) {
-    root.innerHTML = `<p style="text-align:center; color:var(--ink-soft);">لم يُضَف محتوى لهذه المرحلة بعد.</p>`;
+    root.insertAdjacentHTML("beforeend",
+      `<p style="text-align:center; color:var(--ink-soft);">لم يُضَف محتوى لهذه المرحلة بعد. سيظهر هنا فور إضافته.</p>`);
     return;
   }
 
   stage.subjects.forEach(subject => {
     const card = document.createElement("div");
-    card.className = "subject-card";
+    const openKey = stage.id + ":" + subject.id;
+    card.className = "subject-card" + (openSubjects.has(openKey) ? " open" : "");
     const pct = subjectPercent(subject);
 
     const head = document.createElement("div");
@@ -631,16 +750,18 @@ function renderCurriculum() {
     head.innerHTML = `
       <div class="seal" data-pct="${pct}" style="--pct:${pct}"></div>
       <div class="subject-titles">
-        <h2>${subject.icon || ""} ${subject.name}</h2>
+        <h2>${esc(subject.icon || "")} ${esc(subject.name)}</h2>
         <div class="sub">${subject.series.length} سلسلة</div>
       </div>
       <div class="chevron">▾</div>
     `;
-    head.addEventListener("click", () => card.classList.toggle("open"));
+    head.addEventListener("click", () => {
+      card.classList.toggle("open");
+      if (card.classList.contains("open")) openSubjects.add(openKey); else openSubjects.delete(openKey);
+    });
 
     const body = document.createElement("div");
     body.className = "subject-body";
-
     if (subject.series.length === 0) {
       body.innerHTML = `<p style="color:var(--ink-soft); font-size:.85rem;">لم يُضَف محتوى لهذا القسم بعد.</p>`;
     }
@@ -648,17 +769,18 @@ function renderCurriculum() {
     subject.series.forEach(series => {
       const block = document.createElement("div");
       block.className = "series-block";
-      block.innerHTML = `<div class="series-title">${series.name}</div>`;
+      block.innerHTML = `<div class="series-title">${esc(series.name)}</div>`;
 
       series.episodes.forEach(ep => {
         const row = document.createElement("div");
         row.className = "item-row";
+        const href = ep.url ? safeHref(ep.url) : null;
         row.innerHTML = `
-          <div class="item-icon">▶️</div>
-          <div class="item-title">${ep.title}<span class="meta">${ep.duration || ""}</span></div>
-          <button class="tiny-btn ${ep.listened ? "done" : ""}" data-ep="${ep.id}">
-            ${ep.listened ? "✓ تم السماع" : "تم السماع"}
-          </button>
+          ${href
+            ? `<a class="item-icon link" href="${esc(href)}" target="_blank" rel="noopener noreferrer" title="تشغيل الحلقة">▶️</a>`
+            : `<div class="item-icon" title="لا يوجد رابط لهذه الحلقة بعد">▶️</div>`}
+          <div class="item-title">${esc(ep.title)}<span class="meta">${esc(ep.duration || "")}${href ? "" : (ep.duration ? " · " : "") + "لا يوجد رابط بعد"}</span></div>
+          <button class="tiny-btn ${ep.listened ? "done" : ""}">${ep.listened ? "✓ تم السماع" : "تم السماع"}</button>
         `;
         row.querySelector("button").addEventListener("click", () => toggleEpisode(ep));
         block.appendChild(row);
@@ -667,36 +789,39 @@ function renderCurriculum() {
       series.books.forEach(book => {
         const row = document.createElement("div");
         row.className = "item-row";
+        const href = book.file_url ? safeHref(book.file_url) : null;
         const bookPct = book.total_pages > 0 ? Math.min(100, Math.round((book.current_page / book.total_pages) * 100)) : 0;
         row.innerHTML = `
-          <div class="item-icon">📖</div>
-          <div class="item-title">${book.title}
+          ${href
+            ? `<a class="item-icon link" href="${esc(href)}" target="_blank" rel="noopener noreferrer" title="فتح الكتاب">📖</a>`
+            : `<div class="item-icon" title="لا يوجد رابط لهذا الكتاب بعد">📖</div>`}
+          <div class="item-title">${esc(book.title)}
             <span class="meta">صفحة ${book.current_page} من ${book.total_pages}</span>
             <div class="book-progress-bar"><div class="book-progress-fill" style="width:${bookPct}%"></div></div>
           </div>
-          <input type="number" class="page-input" min="0" max="${book.total_pages}" value="${book.current_page}" data-book="${book.id}">
-          <button class="tiny-btn outline" data-savebook="${book.id}">تحديث</button>
+          <input type="number" class="page-input" min="0" max="${book.total_pages}" value="${book.current_page}" aria-label="رقم الصفحة الحالية">
+          <button class="tiny-btn outline">تحديث</button>
         `;
-        row.querySelector("[data-savebook]").addEventListener("click", () => {
-          const input = row.querySelector("[data-book]");
-          updateBookPage(book, input.value);
+        row.querySelector("button").addEventListener("click", () => {
+          updateBookPage(book, row.querySelector("input").value);
         });
         block.appendChild(row);
       });
 
-      if (series.test) {
-        const done = series.test.last_score !== null && series.test.last_score !== undefined;
+      series.tests.forEach(test => {
+        const tried = test.last_score !== null && test.last_score !== undefined;
         const cta = document.createElement("div");
         cta.className = "test-cta";
+        const status = test.passed
+          ? `✓ ناجح — آخر نتيجة: ${test.last_score}%`
+          : tried ? `آخر نتيجة: ${test.last_score}% — النجاح من ${test.pass_percent}%` : `لم يُؤدَّ بعد — النجاح من ${test.pass_percent}%`;
         cta.innerHTML = `
-          <div class="txt">${series.test.title}
-            <small>${done ? "آخر نتيجة: " + series.test.last_score + "%" : "لم يُؤدَ الاختبار بعد"}</small>
-          </div>
-          <button class="tiny-btn" data-test="${series.test.id}">${done ? "إعادة الاختبار" : "بدء الاختبار"}</button>
+          <div class="txt">${esc(test.title)}<small>${status}</small></div>
+          <button class="tiny-btn">${tried ? "إعادة الاختبار" : "بدء الاختبار"}</button>
         `;
-        cta.querySelector("button").addEventListener("click", () => openTest(series.test.id));
+        cta.querySelector("button").addEventListener("click", () => openTest(test.id));
         block.appendChild(cta);
-      }
+      });
 
       body.appendChild(block);
     });
@@ -707,24 +832,25 @@ function renderCurriculum() {
   });
 }
 
-/* ======================= تحديث تقدم الحلقة (يستدعي API فعليًا) ======================= */
+/* ======================= تحديث الحلقة ======================= */
 async function toggleEpisode(ep) {
   const newState = !ep.listened;
-  ep.listened = newState; // تحديث متفائل فوري للواجهة
+  ep.listened = newState;
   renderCurriculum();
   try {
-    await apiFetch("/progress/episode", {
+    const result = await apiFetch("/progress/episode", {
       method: "POST",
       body: JSON.stringify({ episode_id: ep.id, listened: newState }),
     });
+    if (!(await afterProgress(result))) await refreshProgressQuietly();
   } catch (err) {
-    ep.listened = !newState; // تراجع عند الفشل
+    ep.listened = !newState;
     renderCurriculum();
-    alert(err.message);
+    if (!handleAuthError(err)) toast(err.message);
   }
 }
 
-/* ======================= تحديث رقم صفحة الكتاب (يستدعي API فعليًا) ======================= */
+/* ======================= تحديث صفحة الكتاب ======================= */
 async function updateBookPage(book, rawValue) {
   const previous = book.current_page;
   let val = parseInt(rawValue, 10);
@@ -733,20 +859,29 @@ async function updateBookPage(book, rawValue) {
   book.current_page = val;
   renderCurriculum();
   try {
-    const res = await apiFetch("/progress/book", {
+    const result = await apiFetch("/progress/book", {
       method: "POST",
       body: JSON.stringify({ book_id: book.id, current_page: val }),
     });
-    book.current_page = res.current_page;
-    renderCurriculum();
+    book.current_page = result.current_page;
+    if (!(await afterProgress(result))) await refreshProgressQuietly();
   } catch (err) {
     book.current_page = previous;
     renderCurriculum();
-    alert(err.message);
+    if (!handleAuthError(err)) toast(err.message);
   }
 }
 
-/* ======================= الاختبار (يجلب الأسئلة من الباك إند دون كشف الإجابة الصحيحة) ======================= */
+// يحدّث نسب التقدم من غير شاشة تحميل ومن غير ما يقفل الأقسام المفتوحة
+async function refreshProgressQuietly() {
+  try {
+    curriculumData = await apiFetch("/curriculum");
+    renderSanad();
+    renderCurriculum();
+  } catch (err) { handleAuthError(err); }
+}
+
+/* ======================= الاختبار ======================= */
 async function openTest(testId) {
   const overlay = document.getElementById("testOverlay");
   const body = document.getElementById("testModalBody");
@@ -757,23 +892,24 @@ async function openTest(testId) {
   try {
     test = await apiFetch(`/tests/${testId}`);
   } catch (err) {
-    body.innerHTML = `<p style="color:var(--terracotta); text-align:center;">${err.message}</p>`;
+    if (handleAuthError(err)) { overlay.classList.remove("show"); return; }
+    body.innerHTML = `<p style="color:var(--terracotta); text-align:center;">${esc(err.message)}</p>`;
     return;
   }
 
-  body.innerHTML = `<h2>${test.title}</h2><form id="testForm"></form>`;
+  body.innerHTML = `<h2>${esc(test.title)}</h2><p style="font-size:.8rem; color:var(--ink-soft);">النجاح من ${test.pass_percent}%</p><form id="testForm"></form>`;
   const form = body.querySelector("#testForm");
 
   test.questions.forEach((q, qi) => {
     const block = document.createElement("div");
     block.className = "q-block";
-    let optsHtml = q.options.map(opt => `
+    const optsHtml = q.options.map(opt => `
       <label class="opt-label">
         <input type="radio" name="q${q.id}" value="${opt.id}" required>
-        ${opt.text}
+        ${esc(opt.text)}
       </label>
     `).join("");
-    block.innerHTML = `<div class="q-title">${qi + 1}. ${q.text}</div>${optsHtml}`;
+    block.innerHTML = `<div class="q-title">${qi + 1}. ${esc(q.text)}</div>${optsHtml}`;
     form.appendChild(block);
   });
 
@@ -793,39 +929,37 @@ async function openTest(testId) {
     submitBtn.disabled = true;
     submitBtn.textContent = "جارٍ التصحيح...";
     try {
-      const result = await apiFetch(`/tests/${testId}/attempt`, {
-        method: "POST",
-        body: JSON.stringify({ answers }),
-      });
+      const result = await apiFetch(`/tests/${testId}/attempt`, { method: "POST", body: JSON.stringify({ answers }) });
       showTestResult(test, result);
     } catch (err) {
-      alert(err.message);
+      if (handleAuthError(err)) { overlay.classList.remove("show"); return; }
+      toast(err.message);
       submitBtn.disabled = false;
       submitBtn.textContent = "تسليم الإجابات";
     }
   });
 }
 
-function showTestResult(test, result) {
+async function showTestResult(test, result) {
   const body = document.getElementById("testModalBody");
   body.innerHTML = `
-    <h2>${test.title}</h2>
+    <h2>${esc(test.title)}</h2>
     <div class="result-banner ${result.passed ? "pass" : "fail"}">
-      ${result.passed ? "أحسنت! لقد اجتزت الاختبار 🎉" : "لم تحقق النسبة المطلوبة، حاول مرة أخرى"}
+      ${result.passed ? "أحسنت! لقد اجتزت الاختبار 🎉" : "لم تحقق النسبة المطلوبة، راجع الدروس وحاول مرة أخرى"}
     </div>
     <p style="text-align:center; font-size:.95rem;">
       عدد الإجابات الصحيحة: <strong>${result.correct_count}</strong> من ${result.total_questions}<br>
       النسبة: <strong>${result.score}%</strong>
     </p>
     <div style="text-align:center; margin-top:16px;">
-      <button class="tiny-btn" data-close="testOverlay">إغلاق</button>
+      <button class="tiny-btn" id="closeTestBtn">إغلاق</button>
     </div>
   `;
-  body.querySelector("[data-close]").addEventListener("click", () => closeOverlay("testOverlay"));
-  loadCurriculum(); // لتحديث آخر نتيجة معروضة أمام السلسلة
+  body.querySelector("#closeTestBtn").addEventListener("click", () => closeOverlay("testOverlay"));
+  if (!(await afterProgress(result))) await refreshProgressQuietly();
 }
 
-/* ======================= تقرير الطالب (من الباك إند) ======================= */
+/* ======================= تقرير الطالب ======================= */
 async function openReport() {
   const overlay = document.getElementById("reportOverlay");
   const body = document.getElementById("reportModalBody");
@@ -836,74 +970,76 @@ async function openReport() {
   try {
     report = await apiFetch("/progress/me/report");
   } catch (err) {
-    body.innerHTML = `<p style="color:var(--terracotta); text-align:center;">${err.message}</p>`;
+    if (handleAuthError(err)) { overlay.classList.remove("show"); return; }
+    body.innerHTML = `<p style="color:var(--terracotta); text-align:center;">${esc(err.message)}</p>`;
     return;
   }
 
-  const stage = currentStage();
+  const li = i => `<li>${i.type === "episode" ? "▶️" : "📖"} ${esc(i.title)} <span style="color:var(--ink-soft)">— ${esc(i.context)}</span></li>`;
   body.innerHTML = `
-    <h2>📊 تقريري - ${stage ? stage.name : ""}</h2>
+    <h2>📊 تقريري — مرحلة ${esc(report.stage_name || "")}</h2>
     <div class="report-stats">
       <div class="stat-card"><div class="num">${report.completed.length}</div><div class="lbl">عنصر مكتمل</div></div>
       <div class="stat-card"><div class="num">${report.in_progress.length}</div><div class="lbl">عنصر قيد الدراسة</div></div>
     </div>
     <h3 style="font-size:1rem; color:var(--teal-700);">✅ تم الانتهاء منه</h3>
-    <ul class="report-list">
-      ${report.completed.map(i => `<li>${i.type === "episode" ? "▶️" : "📖"} ${i.title} <span style="color:var(--ink-soft)">— ${i.context}</span></li>`).join("") || "<li>لا يوجد بعد</li>"}
-    </ul>
+    <ul class="report-list">${report.completed.map(li).join("") || "<li>لا يوجد بعد</li>"}</ul>
     <h3 style="font-size:1rem; color:var(--terracotta); margin-top:16px;">⏳ قيد الدراسة</h3>
-    <ul class="report-list">
-      ${report.in_progress.map(i => `<li>${i.type === "episode" ? "▶️" : "📖"} ${i.title} <span style="color:var(--ink-soft)">— ${i.context}</span></li>`).join("") || "<li>لا يوجد</li>"}
-    </ul>
+    <ul class="report-list">${report.in_progress.map(li).join("") || "<li>لا يوجد</li>"}</ul>
   `;
 }
 
-/* ======================= شهادة المرحلة (من الباك إند) ======================= */
+/* ======================= شهادة المرحلة المعروضة ======================= */
 async function openCertificate() {
   const overlay = document.getElementById("certOverlay");
   const body = document.getElementById("certModalBody");
-  const stage = currentStage();
+  const stage = viewedStage();
   if (!stage) return;
 
-  body.innerHTML = `<p style="text-align:center; color:var(--ink-soft);">جارٍ التحقق من نسبة الإنجاز...</p>`;
+  body.innerHTML = `<p style="text-align:center; color:var(--ink-soft);">جارٍ التحقق من الإنجاز...</p>`;
   overlay.classList.add("show");
 
   let cert;
   try {
     cert = await apiFetch(`/progress/certificate/${stage.id}`);
   } catch (err) {
-    body.innerHTML = `<p style="color:var(--terracotta); text-align:center;">${err.message}</p>`;
+    if (handleAuthError(err)) { overlay.classList.remove("show"); return; }
+    body.innerHTML = `<p style="color:var(--terracotta); text-align:center;">${esc(err.message)}</p>`;
     return;
   }
 
   if (!cert.eligible) {
     body.innerHTML = `
-      <h2>🏆 شهادة إتمام المرحلة</h2>
-      <p style="font-size:.9rem; color:var(--ink-soft);">
-        لم تكتمل متطلبات المرحلة بعد. نسبة إنجازك الحالية في مرحلة "${cert.stage_name}" هي
-        <strong>${cert.percent}%</strong>. أكمل باقي الحلقات والكتب لإصدار الشهادة.
+      <h2>🏆 شهادة مرحلة ${esc(cert.stage_name)}</h2>
+      <p style="font-size:.9rem; color:var(--ink-soft); line-height:1.9;">
+        لم تكتمل متطلبات المرحلة بعد. نسبة إنجازك الحالية <strong>${cert.percent}%</strong>.<br>
+        تُصدر الشهادة بعد سماع كل الحلقات، وإنهاء كل الكتب${cert.total_tests ? `، والنجاح في كل الاختبارات (${cert.tests_passed} من ${cert.total_tests})` : ""}.
       </p>
     `;
     return;
   }
 
-  const today = new Date().toLocaleDateString("ar-SA", { year: "numeric", month: "long", day: "numeric" });
+  const date = cert.completed_at
+    ? new Date(cert.completed_at.replace(" ", "T") + "Z").toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })
+    : "";
   body.innerHTML = `
     <div class="certificate" id="certPrintArea">
       <div class="seal-stamp">رسوخ</div>
       <div class="kicker">شهادة إتمام</div>
-      <h1>مرحلة ${cert.stage_name}</h1>
+      <h1>مرحلة ${esc(cert.stage_name)}</h1>
       <p class="body-txt">تشهد أكاديمية <strong>رسوخ</strong> للعلم الشرعي بأن الطالب</p>
-      <div class="name">${cert.student_name}</div>
-      <p class="body-txt">قد أتمّ بحمد الله جميع متطلبات هذه المرحلة من حلقات وكتب واختبارات بتاريخ ${today}.</p>
+      <div class="name">${esc(cert.student_name)}</div>
+      <p class="body-txt">قد أتمّ بحمد الله جميع متطلبات هذه المرحلة من حلقات وكتب واختبارات بتاريخ ${esc(date)}.</p>
       <div class="stats-row">
         <div><div class="n">${cert.total_episodes}</div><div class="l">حلقة</div></div>
         <div><div class="n">${cert.total_books}</div><div class="l">كتاب</div></div>
-        <div><div class="n">${cert.percent}%</div><div class="l">نسبة الإنجاز</div></div>
+        <div><div class="n">${cert.total_tests}</div><div class="l">اختبار</div></div>
       </div>
-      <button class="tiny-btn print-btn" onclick="window.print()">🖨️ طباعة الشهادة</button>
+      <p class="cert-no">رقم الشهادة: ${esc(cert.certificate_no)}</p>
+      <button class="tiny-btn print-btn" id="printCertBtn">🖨️ طباعة الشهادة</button>
     </div>
   `;
+  body.querySelector("#printCertBtn").addEventListener("click", () => window.print());
 }
 
 /* ======================= أدوات عامة ======================= */
@@ -914,14 +1050,20 @@ document.querySelectorAll("[data-close]").forEach(btn => {
 });
 document.querySelectorAll(".overlay").forEach(ov => {
   ov.addEventListener("click", (e) => {
-    if (e.target === ov && ov.id !== "loginOverlay" && ov.id !== "loadingOverlay") {
-      ov.classList.remove("show");
-    }
+    if (e.target === ov && ov.id !== "loginOverlay" && ov.id !== "loadingOverlay") ov.classList.remove("show");
   });
 });
 
 document.getElementById("btnReport").addEventListener("click", openReport);
 document.getElementById("btnCertificate").addEventListener("click", openCertificate);
+
+/* ======================= بداية الصفحة ======================= */
+if (authToken) {
+  document.getElementById("loginOverlay").classList.remove("show");
+  loadCurriculum();
+} else {
+  showLogin();
+}
 </script>
 </body>
 </html>

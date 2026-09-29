@@ -106,10 +106,16 @@
   .overlay{position:fixed; inset:0; background:rgba(14,20,18,.55); display:none; align-items:flex-start; justify-content:center; padding:40px 16px; overflow-y:auto; z-index:50;}
   .overlay.show{display:flex;}
   .modal{background:var(--bg-raised); border-radius:16px; max-width:560px; width:100%; padding:26px; position:relative;}
-  .modal-close{position:absolute; top:16px; left:16px; background:none; border:none; font-size:1.3rem; color:var(--ink-soft);}
+  .modal-close{position:absolute; top:10px; left:10px; z-index:2; width:36px; height:36px; border-radius:50%; background:var(--bg-raised); border:none; font-size:1.2rem; color:var(--ink-soft);}
+  .modal-close:hover{background:var(--line-soft);}
 
   .opt-row{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
   .opt-row input[type="text"]{margin-bottom:0; flex:1;}
+  .tree-item-list li .actions{display:flex; gap:6px; align-items:center; flex-shrink:0;}
+  a.open-link{text-decoration:none; font-size:.85rem; padding:2px 6px; border-radius:6px; border:1px solid var(--line);}
+  a.open-link:hover{background:var(--line-soft);}
+  select.stage-select{margin:0; padding:5px 6px; font-size:.78rem; width:auto;}
+  .table-wrap{overflow-x:auto;}
 </style>
 </head>
 <body>
@@ -126,6 +132,7 @@
   <button class="tab-btn" data-tab="content-view">عرض المحتوى</button>
   <button class="tab-btn" data-tab="tests">الاختبارات</button>
   <button class="tab-btn" data-tab="students">الطلاب</button>
+  <button class="tab-btn" data-tab="account">حسابي</button>
 </nav>
 
 <!-- ======================= تبويب: إدارة المحتوى ======================= -->
@@ -194,7 +201,7 @@
         <input type="text" id="episodeTitle" required>
         <div class="row-2">
           <div><label>المدة (مثال: 40 د)</label><input type="text" id="episodeDuration"></div>
-          <div><label>رابط (اختياري)</label><input type="text" id="episodeUrl"></div>
+          <div><label>رابط الحلقة (اختياري)</label><input type="url" id="episodeUrl" placeholder="https://" dir="ltr"></div>
         </div>
         <button class="btn" type="submit">إضافة</button>
       </form>
@@ -210,7 +217,7 @@
         <input type="text" id="bookTitle" required>
         <div class="row-2">
           <div><label>عدد الصفحات</label><input type="number" id="bookPages" min="0" required></div>
-          <div><label>رابط الملف (اختياري)</label><input type="text" id="bookUrl"></div>
+          <div><label>رابط الملف (اختياري)</label><input type="url" id="bookUrl" placeholder="https://" dir="ltr"></div>
         </div>
         <button class="btn" type="submit">إضافة</button>
       </form>
@@ -233,6 +240,7 @@
   <div class="grid-2">
     <div class="panel-card">
       <h3>إنشاء اختبار جديد</h3>
+      <p class="hint">الطالب ينتقل للمرحلة التالية بعد النجاح في كل اختبارات المرحلة. الاختبار اللي مفيهوش أسئلة ما بيظهرش للطالب.</p>
       <div class="msg" id="msg-test"></div>
       <form id="formTest">
         <label>السلسلة</label>
@@ -275,7 +283,45 @@
 <section class="tab-panel" id="tab-students">
   <div class="panel-card">
     <h3>قائمة الطلاب</h3>
+    <p class="hint">الطالب ينتقل للمرحلة التالية تلقائيًا. غيّر المرحلة من القائمة لو محتاج تنقله بنفسك.</p>
     <div id="studentsTableWrap">جارٍ التحميل...</div>
+  </div>
+</section>
+
+<!-- ======================= تبويب: حسابي ======================= -->
+<section class="tab-panel" id="tab-account">
+  <div class="grid-2">
+    <div class="panel-card">
+      <h3>تغيير كلمة المرور</h3>
+      <p class="hint" id="meLine"></p>
+      <div class="msg" id="msg-password"></div>
+      <form id="formPassword">
+        <label for="curPassword">كلمة المرور الحالية</label>
+        <input type="password" id="curPassword" required autocomplete="current-password">
+        <label for="newPassword">كلمة المرور الجديدة (8 أحرف على الأقل)</label>
+        <input type="password" id="newPassword" required minlength="8" autocomplete="new-password">
+        <button class="btn" type="submit">حفظ كلمة المرور</button>
+      </form>
+    </div>
+
+    <div class="panel-card">
+      <h3>إضافة مشرف</h3>
+      <div class="msg" id="msg-admin"></div>
+      <form id="formAdmin">
+        <label for="newAdminName">الاسم</label>
+        <input type="text" id="newAdminName" required>
+        <label for="newAdminEmail">البريد الإلكتروني</label>
+        <input type="email" id="newAdminEmail" required dir="ltr">
+        <label for="newAdminPassword">كلمة المرور (8 أحرف على الأقل)</label>
+        <input type="password" id="newAdminPassword" required minlength="8" autocomplete="new-password">
+        <button class="btn" type="submit">إضافة المشرف</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="panel-card">
+    <h3>المشرفون</h3>
+    <div id="adminsList">جارٍ التحميل...</div>
   </div>
 </section>
 
@@ -289,29 +335,57 @@
 
 <script>
 const API_BASE = "/api"; // نسبي: يعمل محليًا وبعد النشر بدون تعديل
-let authToken = localStorage.getItem("rasokh_token") || null;
-let treeData = []; // بيانات الشجرة الكاملة، تُستخدم لتعبئة كل القوائم المنسدلة
 
-/* ======================= تأمين الوصول: لازم توكن مشرف ======================= */
-if (!authToken || localStorage.getItem("rasokh_role") !== "admin") {
-  window.location.href = "index.html";
+let authToken = null, role = null;
+try { authToken = localStorage.getItem("rasokh_token"); role = localStorage.getItem("rasokh_role"); } catch (e) {}
+let stagesList = [];
+
+/* ======================= تأمين الوصول: لازم جلسة مشرف ======================= */
+if (!authToken || role !== "admin") {
+  window.location.replace("index.html");
+}
+
+/* ======================= أدوات الأمان ======================= */
+// أي نص جاي من السيرفر لازم يعدّي على esc قبل ما يتحط في HTML
+function esc(v) {
+  return String(v === null || v === undefined ? "" : v)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+function safeHref(url) {
+  try {
+    const u = new URL(url, window.location.href);
+    return (u.protocol === "http:" || u.protocol === "https:") ? u.href : null;
+  } catch (e) { return null; }
+}
+function openLink(url, title) {
+  const href = url ? safeHref(url) : null;
+  return href ? `<a class="open-link" href="${esc(href)}" target="_blank" rel="noopener noreferrer" title="${esc(title)}">🔗</a>` : "";
+}
+
+function logoutTo(page) {
+  try { localStorage.removeItem("rasokh_token"); localStorage.removeItem("rasokh_role"); } catch (e) {}
+  window.location.replace(page);
 }
 
 async function apiFetch(path, options = {}) {
-  const res = await fetch(API_BASE + path, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(authToken ? { Authorization: "Bearer " + authToken } : {}),
-      ...(options.headers || {}),
-    },
-  });
+  let res;
+  try {
+    res = await fetch(API_BASE + path, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(authToken ? { Authorization: "Bearer " + authToken } : {}),
+        ...(options.headers || {}),
+      },
+    });
+  } catch (e) {
+    throw new Error("تعذّر الاتصال بالخادم.");
+  }
   let data = {};
   try { data = await res.json(); } catch (e) {}
-  if (res.status === 401 || res.status === 403) {
-    localStorage.removeItem("rasokh_token");
-    localStorage.removeItem("rasokh_role");
-    window.location.href = "index.html";
+  if (res.status === 401 || (res.status === 403 && !data.error)) {
+    logoutTo("index.html");
     throw new Error("انتهت الجلسة");
   }
   if (!res.ok) throw new Error(data.error || "حدث خطأ غير متوقع.");
@@ -326,9 +400,7 @@ function showMsg(id, text, ok) {
 
 document.getElementById("btnLogout").addEventListener("click", () => {
   if (!confirm("هل تريد تسجيل الخروج؟")) return;
-  localStorage.removeItem("rasokh_token");
-  localStorage.removeItem("rasokh_role");
-  window.location.href = "index.html";
+  logoutTo("index.html");
 });
 
 /* ======================= التبويبات ======================= */
@@ -344,8 +416,11 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
 document.querySelectorAll("[data-close]").forEach(btn => {
   btn.addEventListener("click", () => document.getElementById(btn.dataset.close).classList.remove("show"));
 });
+document.getElementById("reportOverlay").addEventListener("click", (e) => {
+  if (e.target.id === "reportOverlay") e.target.classList.remove("show");
+});
 
-/* ======================= تحميل الشجرة وتعبئة كل القوائم ======================= */
+/* ======================= تحميل كل البيانات ======================= */
 async function refreshAll() {
   const [tree, stages, subjects, tests] = await Promise.all([
     apiFetch("/admin/content/tree"),
@@ -353,140 +428,116 @@ async function refreshAll() {
     apiFetch("/admin/content/subjects"),
     apiFetch("/admin/tests"),
   ]);
-  treeData = tree;
+  stagesList = stages;
   populateSelects(stages, subjects);
   renderTree(tree);
   renderTestsList(tests);
   populateTestAndQuestionSelects(tree, tests);
-  loadStudents();
+  await loadStudents();
+}
+
+function options(list, valueKey, labelFn) {
+  return list.map(x => `<option value="${esc(x[valueKey])}">${esc(labelFn(x))}</option>`).join("");
 }
 
 function populateSelects(stages, subjects) {
-  const stageSel = document.getElementById("linkStage");
-  stageSel.innerHTML = stages.map(s => `<option value="${s.id}">${s.name}</option>`).join("");
-  const subjSel = document.getElementById("linkSubject");
-  subjSel.innerHTML = subjects.map(s => `<option value="${s.id}">${s.name}</option>`).join("");
+  document.getElementById("linkStage").innerHTML = options(stages, "id", s => s.name);
+  document.getElementById("linkSubject").innerHTML = options(subjects, "id", s => s.name);
 }
 
 function flattenStageSubjects(tree) {
   const list = [];
-  tree.forEach(stage => {
-    stage.subjects.forEach(subj => {
-      list.push({ stage_subject_id: subj.stage_subject_id, label: `${stage.name} — ${subj.name}` });
-    });
-  });
+  tree.forEach(stage => stage.subjects.forEach(subj => {
+    list.push({ stage_subject_id: subj.stage_subject_id, label: `${stage.name} — ${subj.name}` });
+  }));
   return list;
 }
 
 function flattenSeries(tree) {
   const list = [];
-  tree.forEach(stage => {
-    stage.subjects.forEach(subj => {
-      subj.series.forEach(s => {
-        list.push({ id: s.id, label: `${stage.name} — ${subj.name} — ${s.name}` });
-      });
-    });
-  });
+  tree.forEach(stage => stage.subjects.forEach(subj => subj.series.forEach(s => {
+    list.push({ id: s.id, label: `${stage.name} — ${subj.name} — ${s.name}` });
+  })));
   return list;
 }
 
 function populateTestAndQuestionSelects(tree, tests) {
   const series = flattenSeries(tree);
-  document.getElementById("testSeries").innerHTML = series.map(s => `<option value="${s.id}">${s.label}</option>`).join("");
-
-  const questionTestSel = document.getElementById("questionTest");
-  questionTestSel.innerHTML = tests.map(t => `<option value="${t.id}">${t.title}</option>`).join("");
-
-  const stageSubjects = flattenStageSubjects(tree);
-  document.getElementById("seriesStageSubject").innerHTML = stageSubjects.map(s => `<option value="${s.stage_subject_id}">${s.label}</option>`).join("");
-
-  document.getElementById("episodeSeries").innerHTML = series.map(s => `<option value="${s.id}">${s.label}</option>`).join("");
-  document.getElementById("bookSeries").innerHTML = series.map(s => `<option value="${s.id}">${s.label}</option>`).join("");
+  const seriesOpts = options(series, "id", s => s.label);
+  document.getElementById("testSeries").innerHTML = seriesOpts;
+  document.getElementById("episodeSeries").innerHTML = seriesOpts;
+  document.getElementById("bookSeries").innerHTML = seriesOpts;
+  document.getElementById("questionTest").innerHTML = options(tests, "id", t => `${t.title} (${t.series_name})`);
+  document.getElementById("seriesStageSubject").innerHTML =
+    options(flattenStageSubjects(tree), "stage_subject_id", s => s.label);
 }
 
 /* ======================= إدارة المحتوى: الفورمات ======================= */
-document.getElementById("formStage").addEventListener("submit", async (e) => {
+function bindForm(formId, msgId, path, buildBody, okText, resetAfter = true) {
+  document.getElementById(formId).addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    try {
+      await apiFetch(path, { method: "POST", body: JSON.stringify(buildBody()) });
+      showMsg(msgId, okText, true);
+      if (resetAfter) e.target.reset();
+      await refreshAll();
+    } catch (err) {
+      showMsg(msgId, err.message, false);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}
+const val = id => document.getElementById(id).value.trim();
+const num = id => parseInt(document.getElementById(id).value, 10);
+
+bindForm("formStage", "msg-stage", "/admin/content/stages",
+  () => ({ name: val("stageName"), order_index: num("stageOrder") || 0 }), "تمت إضافة المرحلة.");
+bindForm("formSubject", "msg-subject", "/admin/content/subjects",
+  () => ({ name: val("subjectName"), icon: val("subjectIcon") }), "تمت إضافة القسم.");
+bindForm("formLink", "msg-link", "/admin/content/stage-subject",
+  () => ({ stage_id: num("linkStage"), subject_id: num("linkSubject") }), "تم الربط.", false);
+bindForm("formSeries", "msg-series", "/admin/content/series",
+  () => ({ stage_subject_id: num("seriesStageSubject"), name: val("seriesName") }), "تمت إضافة السلسلة.");
+bindForm("formEpisode", "msg-episode", "/admin/content/episodes",
+  () => ({ series_id: num("episodeSeries"), title: val("episodeTitle"), duration: val("episodeDuration"), url: val("episodeUrl") }),
+  "تمت إضافة الحلقة.");
+bindForm("formBook", "msg-book", "/admin/content/books",
+  () => ({ series_id: num("bookSeries"), title: val("bookTitle"), total_pages: num("bookPages") || 0, file_url: val("bookUrl") }),
+  "تمت إضافة الكتاب.");
+bindForm("formTest", "msg-test", "/admin/tests",
+  () => ({ series_id: num("testSeries"), title: val("testTitle"), pass_percent: num("testPassPercent") || 60 }),
+  "تم إنشاء الاختبار. أضف له أسئلة عشان يظهر للطالب.");
+
+document.getElementById("formQuestion").addEventListener("submit", async (e) => {
   e.preventDefault();
+  const correctIdx = parseInt(document.querySelector('input[name="correctOpt"]:checked').value, 10);
+  const opts = Array.from(document.querySelectorAll(".opt-text"))
+    .map((i, idx) => ({ text: i.value.trim(), is_correct: idx === correctIdx }))
+    .filter(o => o.text !== "");
+  if (!opts.some(o => o.is_correct)) {
+    showMsg("msg-question", "الخيار المحدد كصحيح فاضي، اكتب نصه أو اختار خيار تاني.", false);
+    return;
+  }
   try {
-    await apiFetch("/admin/content/stages", { method: "POST", body: JSON.stringify({
-      name: document.getElementById("stageName").value.trim(),
-      order_index: parseInt(document.getElementById("stageOrder").value, 10) || 0,
-    }) });
-    showMsg("msg-stage", "تمت الإضافة بنجاح.", true);
+    await apiFetch("/admin/tests/questions", {
+      method: "POST",
+      body: JSON.stringify({ test_id: num("questionTest"), text: val("questionText"), options: opts }),
+    });
+    showMsg("msg-question", "تمت إضافة السؤال.", true);
+    const keepTest = document.getElementById("questionTest").value;
     e.target.reset();
     await refreshAll();
-  } catch (err) { showMsg("msg-stage", err.message, false); }
-});
-
-document.getElementById("formSubject").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  try {
-    await apiFetch("/admin/content/subjects", { method: "POST", body: JSON.stringify({
-      name: document.getElementById("subjectName").value.trim(),
-      icon: document.getElementById("subjectIcon").value.trim(),
-    }) });
-    showMsg("msg-subject", "تمت الإضافة بنجاح.", true);
-    e.target.reset();
-    await refreshAll();
-  } catch (err) { showMsg("msg-subject", err.message, false); }
-});
-
-document.getElementById("formLink").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  try {
-    await apiFetch("/admin/content/stage-subject", { method: "POST", body: JSON.stringify({
-      stage_id: parseInt(document.getElementById("linkStage").value, 10),
-      subject_id: parseInt(document.getElementById("linkSubject").value, 10),
-    }) });
-    showMsg("msg-link", "تم الربط بنجاح.", true);
-    await refreshAll();
-  } catch (err) { showMsg("msg-link", err.message, false); }
-});
-
-document.getElementById("formSeries").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  try {
-    await apiFetch("/admin/content/series", { method: "POST", body: JSON.stringify({
-      stage_subject_id: parseInt(document.getElementById("seriesStageSubject").value, 10),
-      name: document.getElementById("seriesName").value.trim(),
-    }) });
-    showMsg("msg-series", "تمت الإضافة بنجاح.", true);
-    e.target.reset();
-    await refreshAll();
-  } catch (err) { showMsg("msg-series", err.message, false); }
-});
-
-document.getElementById("formEpisode").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  try {
-    await apiFetch("/admin/content/episodes", { method: "POST", body: JSON.stringify({
-      series_id: parseInt(document.getElementById("episodeSeries").value, 10),
-      title: document.getElementById("episodeTitle").value.trim(),
-      duration: document.getElementById("episodeDuration").value.trim(),
-      url: document.getElementById("episodeUrl").value.trim(),
-    }) });
-    showMsg("msg-episode", "تمت الإضافة بنجاح.", true);
-    e.target.reset();
-    await refreshAll();
-  } catch (err) { showMsg("msg-episode", err.message, false); }
-});
-
-document.getElementById("formBook").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  try {
-    await apiFetch("/admin/content/books", { method: "POST", body: JSON.stringify({
-      series_id: parseInt(document.getElementById("bookSeries").value, 10),
-      title: document.getElementById("bookTitle").value.trim(),
-      total_pages: parseInt(document.getElementById("bookPages").value, 10) || 0,
-      file_url: document.getElementById("bookUrl").value.trim(),
-    }) });
-    showMsg("msg-book", "تمت الإضافة بنجاح.", true);
-    e.target.reset();
-    await refreshAll();
-  } catch (err) { showMsg("msg-book", err.message, false); }
+    document.getElementById("questionTest").value = keepTest;
+  } catch (err) { showMsg("msg-question", err.message, false); }
 });
 
 /* ======================= عرض المحتوى (الشجرة) ======================= */
+const delBtn = (kind, id, label = "🗑") =>
+  `<button class="btn danger small" data-del="${kind}" data-id="${esc(id)}">${label}</button>`;
+
 function renderTree(tree) {
   const el = document.getElementById("contentTree");
   if (tree.length === 0) { el.innerHTML = `<p class="empty-note">لا توجد مراحل بعد.</p>`; return; }
@@ -494,29 +545,29 @@ function renderTree(tree) {
   el.innerHTML = tree.map(stage => `
     <div class="tree-stage">
       <div class="head">
-        <strong>📚 ${stage.name}</strong>
-        <button class="btn danger small" data-del="stages" data-id="${stage.id}">🗑 حذف المرحلة</button>
+        <strong>📚 ${esc(stage.name)}</strong>
+        ${delBtn("stages", stage.id, "🗑 حذف المرحلة")}
       </div>
       ${stage.subjects.length === 0
         ? `<p class="empty-note" style="padding:10px 16px;">لا يوجد أقسام مربوطة بهذه المرحلة.</p>`
         : stage.subjects.map(subj => `
           <div class="tree-subject">
             <div class="head">
-              <span>${subj.icon || ""} ${subj.name}</span>
-              <button class="btn danger small" data-del="stage-subject" data-id="${subj.stage_subject_id}">🗑 فك الربط</button>
+              <span>${esc(subj.icon || "")} ${esc(subj.name)}</span>
+              ${delBtn("stage-subject", subj.stage_subject_id, "🗑 فك الربط")}
             </div>
             ${subj.series.length === 0
               ? `<p class="empty-note">لا يوجد سلاسل.</p>`
               : subj.series.map(s => `
                 <div class="tree-series">
                   <div class="head">
-                    <span>◆ ${s.name}</span>
-                    <button class="btn danger small" data-del="series" data-id="${s.id}">🗑 حذف السلسلة</button>
+                    <span>◆ ${esc(s.name)}</span>
+                    ${delBtn("series", s.id, "🗑 حذف السلسلة")}
                   </div>
                   <ul class="tree-item-list">
-                    ${s.episodes.map(e => `<li>▶️ ${e.title} <button class="btn danger small" data-del="episodes" data-id="${e.id}">🗑</button></li>`).join("")}
-                    ${s.books.map(b => `<li>📖 ${b.title} (${b.total_pages} صفحة) <button class="btn danger small" data-del="books" data-id="${b.id}">🗑</button></li>`).join("")}
-                    ${s.test ? `<li>📝 اختبار: ${s.test.title} <button class="btn danger small" data-del="tests" data-id="${s.test.id}">🗑</button></li>` : ""}
+                    ${s.episodes.map(e => `<li><span>▶️ ${esc(e.title)}</span><span class="actions">${openLink(e.url, "فتح الحلقة")}${delBtn("episodes", e.id)}</span></li>`).join("")}
+                    ${s.books.map(b => `<li><span>📖 ${esc(b.title)} (${esc(b.total_pages)} صفحة)</span><span class="actions">${openLink(b.file_url, "فتح الكتاب")}${delBtn("books", b.id)}</span></li>`).join("")}
+                    ${s.test ? `<li><span>📝 اختبار: ${esc(s.test.title)}</span><span class="actions">${delBtn("tests", s.test.id)}</span></li>` : ""}
                   </ul>
                 </div>
               `).join("")}
@@ -526,17 +577,17 @@ function renderTree(tree) {
     </div>
   `).join("");
 
+  const endpointMap = {
+    stages: "/admin/content/stages/",
+    "stage-subject": "/admin/content/stage-subject/",
+    series: "/admin/content/series/",
+    episodes: "/admin/content/episodes/",
+    books: "/admin/content/books/",
+    tests: "/admin/tests/",
+  };
   el.querySelectorAll("[data-del]").forEach(btn => {
     btn.addEventListener("click", async () => {
-      if (!confirm("متأكد من الحذف؟ سيُحذف كل ما بداخل هذا العنصر أيضًا.")) return;
-      const endpointMap = {
-        stages: "/admin/content/stages/",
-        "stage-subject": "/admin/content/stage-subject/",
-        series: "/admin/content/series/",
-        episodes: "/admin/content/episodes/",
-        books: "/admin/content/books/",
-        tests: "/admin/tests/",
-      };
+      if (!confirm("متأكد من الحذف؟ سيُحذف كل ما بداخل هذا العنصر، ومعه تقدم الطلاب فيه.")) return;
       try {
         await apiFetch(endpointMap[btn.dataset.del] + btn.dataset.id, { method: "DELETE" });
         await refreshAll();
@@ -546,55 +597,24 @@ function renderTree(tree) {
 }
 
 /* ======================= الاختبارات ======================= */
-document.getElementById("formTest").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  try {
-    await apiFetch("/admin/tests", { method: "POST", body: JSON.stringify({
-      series_id: parseInt(document.getElementById("testSeries").value, 10),
-      title: document.getElementById("testTitle").value.trim(),
-      pass_percent: parseInt(document.getElementById("testPassPercent").value, 10) || 60,
-    }) });
-    showMsg("msg-test", "تم إنشاء الاختبار.", true);
-    e.target.reset();
-    await refreshAll();
-  } catch (err) { showMsg("msg-test", err.message, false); }
-});
-
-document.getElementById("formQuestion").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const correctIdx = parseInt(document.querySelector('input[name="correctOpt"]:checked').value, 10);
-  const optionTexts = Array.from(document.querySelectorAll(".opt-text")).map(i => i.value.trim());
-  const options = optionTexts
-    .map((text, i) => ({ text, is_correct: i === correctIdx }))
-    .filter(o => o.text !== "");
-
-  try {
-    await apiFetch("/admin/tests/questions", { method: "POST", body: JSON.stringify({
-      test_id: parseInt(document.getElementById("questionTest").value, 10),
-      text: document.getElementById("questionText").value.trim(),
-      options,
-    }) });
-    showMsg("msg-question", "تمت إضافة السؤال.", true);
-    e.target.reset();
-    await refreshAll();
-  } catch (err) { showMsg("msg-question", err.message, false); }
-});
-
 function renderTestsList(tests) {
   const el = document.getElementById("testsList");
   if (tests.length === 0) { el.innerHTML = `<p class="empty-note">لا توجد اختبارات بعد.</p>`; return; }
   el.innerHTML = tests.map(t => `
     <div style="border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin-bottom:10px;">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <strong style="color:var(--teal-900);">${t.title}</strong>
-        <button class="btn danger small" data-del-test="${t.id}">🗑 حذف الاختبار</button>
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+        <strong style="color:var(--teal-900);">${esc(t.title)}</strong>
+        <button class="btn danger small" data-del-test="${esc(t.id)}">🗑 حذف الاختبار</button>
       </div>
-      <div style="font-size:.78rem; color:var(--ink-soft); margin-top:4px;">السلسلة: ${t.series_name} — نسبة النجاح: ${t.pass_percent}%</div>
+      <div style="font-size:.78rem; color:var(--ink-soft); margin-top:4px;">
+        السلسلة: ${esc(t.series_name)} — نسبة النجاح: ${esc(t.pass_percent)}%
+        ${t.questions.length === 0 ? ` — <span style="color:var(--terracotta);">مفيهوش أسئلة، مش ظاهر للطلاب</span>` : ""}
+      </div>
       <ul class="tree-item-list" style="margin-top:8px;">
         ${t.questions.map(q => `
           <li>
-            <span>${q.text}</span>
-            <button class="btn danger small" data-del-question="${q.id}">🗑</button>
+            <span>${esc(q.text)} <span style="color:var(--ink-soft);">(الصحيح: ${esc((q.options.find(o => o.is_correct) || {}).text)})</span></span>
+            <button class="btn danger small" data-del-question="${esc(q.id)}">🗑</button>
           </li>
         `).join("") || `<li class="empty-note">لا توجد أسئلة بعد.</li>`}
       </ul>
@@ -603,7 +623,7 @@ function renderTestsList(tests) {
 
   el.querySelectorAll("[data-del-test]").forEach(btn => {
     btn.addEventListener("click", async () => {
-      if (!confirm("حذف الاختبار بكل أسئلته؟")) return;
+      if (!confirm("حذف الاختبار بكل أسئلته ونتائج الطلاب فيه؟")) return;
       try { await apiFetch("/admin/tests/" + btn.dataset.delTest, { method: "DELETE" }); await refreshAll(); }
       catch (err) { alert(err.message); }
     });
@@ -623,36 +643,51 @@ async function loadStudents() {
   try {
     const students = await apiFetch("/admin/students");
     if (students.length === 0) { wrap.innerHTML = `<p class="empty-note">لا يوجد طلاب مسجّلين بعد.</p>`; return; }
+    const stageOpts = sel => stagesList.map(st =>
+      `<option value="${esc(st.id)}"${st.id === sel ? " selected" : ""}>${esc(st.name)}</option>`).join("");
     wrap.innerHTML = `
-      <table>
+      <div class="table-wrap"><table>
         <thead><tr><th>الاسم</th><th>البريد</th><th>الهاتف</th><th>المرحلة</th><th>الحالة</th><th>إجراءات</th></tr></thead>
         <tbody>
           ${students.map(s => `
             <tr>
-              <td>${s.full_name}</td>
-              <td>${s.email}</td>
-              <td>${s.phone || "—"}</td>
-              <td>${s.stage_name || "—"}</td>
+              <td>${esc(s.full_name)}</td>
+              <td dir="ltr" style="text-align:right;">${esc(s.email)}</td>
+              <td dir="ltr" style="text-align:right;">${esc(s.phone || "—")}</td>
+              <td><select class="stage-select" data-stage-for="${esc(s.id)}" aria-label="مرحلة الطالب">${stageOpts(s.current_stage_id)}</select></td>
               <td><span class="badge ${s.is_blocked ? "blocked" : "active"}">${s.is_blocked ? "موقوف" : "فعّال"}</span></td>
               <td style="display:flex; gap:6px; flex-wrap:wrap;">
-                <button class="btn small outline" data-report="${s.id}">📊 تقرير</button>
-                <button class="btn small ${s.is_blocked ? "" : "danger"}" data-block="${s.id}" data-blocked="${s.is_blocked}">
+                <button class="btn small outline" data-report="${esc(s.id)}">📊 تقرير</button>
+                <button class="btn small ${s.is_blocked ? "" : "danger"}" data-block="${esc(s.id)}" data-blocked="${s.is_blocked ? 1 : 0}">
                   ${s.is_blocked ? "تفعيل" : "منع"}
                 </button>
-                <button class="btn danger small" data-delstudent="${s.id}">🗑 حذف</button>
+                <button class="btn danger small" data-delstudent="${esc(s.id)}">🗑 حذف</button>
               </td>
             </tr>
           `).join("")}
         </tbody>
-      </table>
+      </table></div>
     `;
 
     wrap.querySelectorAll("[data-report]").forEach(btn => {
       btn.addEventListener("click", () => openStudentReport(btn.dataset.report));
     });
+    wrap.querySelectorAll("[data-stage-for]").forEach(sel => {
+      const original = sel.value;
+      sel.addEventListener("change", async () => {
+        const name = sel.options[sel.selectedIndex].text;
+        if (!confirm(`نقل الطالب يدويًا لمرحلة ${name}؟`)) { sel.value = original; return; }
+        try {
+          await apiFetch(`/admin/students/${sel.dataset.stageFor}/stage`, {
+            method: "PATCH", body: JSON.stringify({ stage_id: parseInt(sel.value, 10) }),
+          });
+          await loadStudents();
+        } catch (err) { alert(err.message); sel.value = original; }
+      });
+    });
     wrap.querySelectorAll("[data-block]").forEach(btn => {
       btn.addEventListener("click", async () => {
-        const nowBlocked = btn.dataset.blocked === "1" || btn.dataset.blocked === "true";
+        const nowBlocked = btn.dataset.blocked === "1";
         try {
           await apiFetch(`/admin/students/${btn.dataset.block}/block`, {
             method: "PATCH", body: JSON.stringify({ is_blocked: !nowBlocked }),
@@ -663,13 +698,13 @@ async function loadStudents() {
     });
     wrap.querySelectorAll("[data-delstudent]").forEach(btn => {
       btn.addEventListener("click", async () => {
-        if (!confirm("حذف هذا الطالب نهائيًا؟")) return;
+        if (!confirm("حذف هذا الطالب نهائيًا مع كل تقدمه؟")) return;
         try { await apiFetch("/admin/students/" + btn.dataset.delstudent, { method: "DELETE" }); await loadStudents(); }
         catch (err) { alert(err.message); }
       });
     });
   } catch (err) {
-    wrap.innerHTML = `<p style="color:var(--terracotta);">${err.message}</p>`;
+    wrap.innerHTML = `<p style="color:var(--terracotta);">${esc(err.message)}</p>`;
   }
 }
 
@@ -679,21 +714,87 @@ async function openStudentReport(studentId) {
   body.innerHTML = `<p style="text-align:center;">جارٍ التحميل...</p>`;
   overlay.classList.add("show");
   try {
-    const report = await apiFetch(`/admin/students/${studentId}/report`);
+    const r = await apiFetch(`/admin/students/${studentId}/report`);
+    const p = r.progress || {};
     body.innerHTML = `
       <h2>تقرير الطالب</h2>
+      <p style="font-size:.85rem; color:var(--ink-soft); line-height:1.9;">
+        المرحلة الحالية: <strong>${esc(r.stage_name)}</strong> — ${p.percent || 0}%<br>
+        ${p.episodes_done || 0}/${p.episodes_total || 0} حلقة · ${p.books_done || 0}/${p.books_total || 0} كتاب · ${p.tests_passed || 0}/${p.tests_total || 0} اختبار
+        ${r.completed_stages && r.completed_stages.length ? `<br>أتمّ: ${r.completed_stages.map(c => esc(c.name)).join("، ")}` : ""}
+      </p>
       <h3 style="font-size:1rem; color:var(--teal-700);">✅ تم الانتهاء منه</h3>
-      <ul class="tree-item-list">${report.finished.map(f => `<li>${f}</li>`).join("") || `<li class="empty-note">لا يوجد بعد</li>`}</ul>
+      <ul class="tree-item-list">${r.finished.map(f => `<li>${esc(f)}</li>`).join("") || `<li class="empty-note">لا يوجد بعد</li>`}</ul>
       <h3 style="font-size:1rem; color:var(--terracotta); margin-top:14px;">⏳ بدأ فيه ولم ينتهِ</h3>
-      <ul class="tree-item-list">${report.started.map(s => `<li>${s}</li>`).join("") || `<li class="empty-note">لا يوجد</li>`}</ul>
+      <ul class="tree-item-list">${r.started.map(s => `<li>${esc(s)}</li>`).join("") || `<li class="empty-note">لا يوجد</li>`}</ul>
     `;
   } catch (err) {
-    body.innerHTML = `<p style="color:var(--terracotta);">${err.message}</p>`;
+    body.innerHTML = `<p style="color:var(--terracotta);">${esc(err.message)}</p>`;
   }
 }
 
-/* ======================= التهيئة الأولية ======================= */
-refreshAll().catch(err => console.error(err));
+/* ======================= حسابي ======================= */
+async function loadAccount() {
+  try {
+    const [me, admins] = await Promise.all([apiFetch("/admin/account/me"), apiFetch("/admin/account/admins")]);
+    document.getElementById("meLine").textContent = `مسجّل الدخول باسم ${me.full_name} (${me.email})`;
+    const list = document.getElementById("adminsList");
+    list.innerHTML = `<ul class="tree-item-list">${admins.map(a => `
+      <li>
+        <span>${esc(a.full_name)} — <span dir="ltr">${esc(a.email)}</span>${a.id === me.id ? " (أنت)" : ""}</span>
+        ${a.id === me.id ? "" : `<button class="btn danger small" data-del-admin="${esc(a.id)}">🗑</button>`}
+      </li>`).join("")}</ul>
+      ${admins.some(a => a.email === "admin@rasokh.test")
+        ? `<p class="msg err" style="margin-top:10px;">حساب المشرف التجريبي admin@rasokh.test لسه موجود. أضف مشرف بحسابك الحقيقي، وادخل بيه، واحذف التجريبي.</p>` : ""}`;
+    list.querySelectorAll("[data-del-admin]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        if (!confirm("حذف هذا المشرف؟")) return;
+        try { await apiFetch("/admin/account/admins/" + btn.dataset.delAdmin, { method: "DELETE" }); await loadAccount(); }
+        catch (err) { alert(err.message); }
+      });
+    });
+  } catch (err) {
+    document.getElementById("adminsList").innerHTML = `<p style="color:var(--terracotta);">${esc(err.message)}</p>`;
+  }
+}
+
+document.getElementById("formPassword").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    await apiFetch("/admin/account/password", {
+      method: "POST",
+      body: JSON.stringify({
+        current_password: document.getElementById("curPassword").value,
+        new_password: document.getElementById("newPassword").value,
+      }),
+    });
+    showMsg("msg-password", "تم تغيير كلمة المرور.", true);
+    e.target.reset();
+  } catch (err) { showMsg("msg-password", err.message, false); }
+});
+
+document.getElementById("formAdmin").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    await apiFetch("/admin/account/admins", {
+      method: "POST",
+      body: JSON.stringify({
+        full_name: val("newAdminName"),
+        email: val("newAdminEmail"),
+        password: document.getElementById("newAdminPassword").value,
+      }),
+    });
+    showMsg("msg-admin", "تمت إضافة المشرف.", true);
+    e.target.reset();
+    await loadAccount();
+  } catch (err) { showMsg("msg-admin", err.message, false); }
+});
+
+/* ======================= بداية الصفحة ======================= */
+if (authToken && role === "admin") {
+  refreshAll().catch(err => console.error(err));
+  loadAccount();
+}
 </script>
 </body>
 </html>

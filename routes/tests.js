@@ -2,6 +2,7 @@
 const express = require("express");
 const db = require("../db/database");
 const { requireAuth, requireRole } = require("../middleware/auth");
+const sp = require("../lib/stage-progress");
 
 const router = express.Router();
 
@@ -9,6 +10,9 @@ const router = express.Router();
 router.get("/:id", requireAuth, requireRole("student"), (req, res) => {
   const test = db.prepare(`SELECT id, title, pass_percent FROM tests WHERE id = ?`).get(req.params.id);
   if (!test) return res.status(404).json({ error: "الاختبار غير موجود." });
+  if (!sp.canAccessStage(req.user.id, sp.stageIdOf("test", test.id))) {
+    return res.status(403).json({ error: "هذا الاختبار في مرحلة لم تُفتح لك بعد." });
+  }
 
   const questions = db.prepare(
     `SELECT id, text FROM questions WHERE test_id = ? ORDER BY order_index ASC`
@@ -28,6 +32,9 @@ router.get("/:id", requireAuth, requireRole("student"), (req, res) => {
 router.post("/:id/attempt", requireAuth, requireRole("student"), (req, res) => {
   const test = db.prepare(`SELECT * FROM tests WHERE id = ?`).get(req.params.id);
   if (!test) return res.status(404).json({ error: "الاختبار غير موجود." });
+  if (!sp.canAccessStage(req.user.id, sp.stageIdOf("test", test.id))) {
+    return res.status(403).json({ error: "هذا الاختبار في مرحلة لم تُفتح لك بعد." });
+  }
 
   const { answers } = req.body;
   if (!Array.isArray(answers)) {
@@ -35,6 +42,9 @@ router.post("/:id/attempt", requireAuth, requireRole("student"), (req, res) => {
   }
 
   const questions = db.prepare(`SELECT id FROM questions WHERE test_id = ?`).all(test.id);
+  if (questions.length === 0) {
+    return res.status(400).json({ error: "هذا الاختبار لا يحتوي على أسئلة بعد." });
+  }
   let correctCount = 0;
 
   questions.forEach(q => {
@@ -61,6 +71,7 @@ router.post("/:id/attempt", requireAuth, requireRole("student"), (req, res) => {
     passed: !!passed,
     correct_count: correctCount,
     total_questions: questions.length,
+    advanced_to: sp.advanceIfComplete(req.user.id),
   });
 });
 

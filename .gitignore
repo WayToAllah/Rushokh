@@ -1,3 +1,4 @@
 node_modules/
 .env
 db/rasokh.db
+db/.jwt-secret

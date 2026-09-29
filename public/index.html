@@ -238,9 +238,6 @@
       <input type="password" id="loginPassword" required autocomplete="current-password">
       <button type="submit" class="submit-btn" id="loginBtn">دخول</button>
     </form>
-    <div class="demo-hint">
-      للتجربة: <code>ahmed@rasokh.test</code> / <code>student123</code>
-    </div>
   </div>
 
   <!-- بطاقة تسجيل طالب جديد -->
@@ -266,8 +263,8 @@
       </div>
       <label for="regAddress">العنوان</label>
       <input type="text" id="regAddress">
-      <label for="regPassword">كلمة المرور</label>
-      <input type="password" id="regPassword" required autocomplete="new-password">
+      <label for="regPassword">كلمة المرور (8 أحرف على الأقل)</label>
+      <input type="password" id="regPassword" required minlength="8" autocomplete="new-password">
       <button type="submit" class="submit-btn" id="registerBtn">تسجيل</button>
     </form>
   </div>
@@ -286,9 +283,6 @@
       <input type="password" id="adminPassword" required>
       <button type="submit" class="submit-btn" id="adminBtn">دخول</button>
     </form>
-    <div class="demo-hint">
-      للتجربة: <code>admin@rasokh.test</code> / <code>admin123</code>
-    </div>
   </div>
 </div>
 

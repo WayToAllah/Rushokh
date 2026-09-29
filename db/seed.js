@@ -11,7 +11,7 @@ function run(sql, params = []) {
 
 function clearAll() {
   const tables = [
-    "student_test_attempts", "options", "questions", "tests",
+    "student_stage_completions", "student_test_attempts", "options", "questions", "tests",
     "student_book_progress", "student_episode_progress",
     "books", "episodes", "series", "stage_subject",
     "subjects", "stages", "students", "admins"
@@ -48,6 +48,33 @@ function seed() {
   subjectDefs.forEach(s => {
     const info = run(`INSERT INTO subjects (name, icon) VALUES (?, ?)`, [s.name, s.icon]);
     subjectIds[s.name] = Number(info.lastInsertRowid);
+  });
+
+  // ---- المرحلة التمهيدية: قسم الفقه، سلسلة قصيرة + كتاب + اختبار ----
+  const introSS = Number(run(
+    `INSERT INTO stage_subject (stage_id, subject_id, order_index) VALUES (?, ?, 0)`,
+    [stageIds["التمهيدية"], subjectIds["الفقه"]]
+  ).lastInsertRowid);
+  const introSeries = Number(run(
+    `INSERT INTO series (stage_subject_id, name, order_index) VALUES (?, ?, 0)`,
+    [introSS, "مدخل إلى طلب العلم"]
+  ).lastInsertRowid);
+  const introEpisodeIds = [["فضل العلم وآدابه", "25 د"], ["كيف تطلب العلم", "30 د"]].map(([title, duration], i) =>
+    Number(run(`INSERT INTO episodes (series_id, title, duration, order_index) VALUES (?, ?, ?, ?)`,
+      [introSeries, title, duration, i]).lastInsertRowid)
+  );
+  const introBookId = Number(run(`INSERT INTO books (series_id, title, total_pages) VALUES (?, ?, ?)`,
+    [introSeries, "حلية طالب العلم", 40]).lastInsertRowid);
+  const introTestId = Number(run(`INSERT INTO tests (series_id, title, pass_percent) VALUES (?, ?, 60)`,
+    [introSeries, "اختبار المدخل"]).lastInsertRowid);
+  [
+    { text: "ما أول ما يبدأ به طالب العلم؟", options: ["إخلاص النية لله", "جمع الكتب", "الشهرة"], correct: 0 },
+    { text: "من آداب طالب العلم:", options: ["الكبر", "التواضع", "الجدال"], correct: 1 },
+  ].forEach((q, qi) => {
+    const qId = Number(run(`INSERT INTO questions (test_id, text, order_index) VALUES (?, ?, ?)`,
+      [introTestId, q.text, qi]).lastInsertRowid);
+    q.options.forEach((t, oi) => run(`INSERT INTO options (question_id, text, is_correct) VALUES (?, ?, ?)`,
+      [qId, t, oi === q.correct ? 1 : 0]));
   });
 
   // ---- ربط أقسام "الفقه، التفسير، الحديث" بالمرحلة الأولى ----
@@ -148,11 +175,18 @@ function seed() {
 
   // ---- طالب تجريبي ----
   const studentHash = bcrypt.hashSync("student123", 10);
-  run(
+  const ahmedId = Number(run(
     `INSERT INTO students (full_name, email, phone, age, address, password_hash, current_stage_id)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
     ["أحمد بن سالم العتيبي", "ahmed@rasokh.test", "0500000000", 22, "الرياض", studentHash, stageIds["الأولى"]]
-  );
+  ).lastInsertRowid);
+
+  // أحمد أتم التمهيدية بالكامل (عشان تظهر شهادتها في التجربة)
+  introEpisodeIds.forEach(id => run(
+    `INSERT INTO student_episode_progress (student_id, episode_id, listened) VALUES (?, ?, 1)`, [ahmedId, id]));
+  run(`INSERT INTO student_book_progress (student_id, book_id, current_page) VALUES (?, ?, 40)`, [ahmedId, introBookId]);
+  run(`INSERT INTO student_test_attempts (student_id, test_id, score, passed) VALUES (?, ?, 100, 1)`, [ahmedId, introTestId]);
+  run(`INSERT INTO student_stage_completions (student_id, stage_id) VALUES (?, ?)`, [ahmedId, stageIds["التمهيدية"]]);
 
   console.log("✅ تم تعبئة قاعدة البيانات بنجاح.");
   console.log("   دخول المشرف   -> admin@rasokh.test / admin123");

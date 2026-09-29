@@ -4,6 +4,17 @@ const db = require("../../db/database");
 const { requireAuth, requireRole } = require("../../middleware/auth");
 
 const router = express.Router();
+
+// الروابط لازم تبدأ بـ http:// أو https:// (عشان محدش يحط رابط javascript: يشغّل كود عند الطالب)
+function safeUrl(v) {
+  if (v === undefined || v === null || String(v).trim() === "") return { ok: true, value: null };
+  const s = String(v).trim();
+  try {
+    const u = new URL(s);
+    if (u.protocol === "http:" || u.protocol === "https:") return { ok: true, value: u.toString() };
+  } catch (e) { /* رابط غير صالح */ }
+  return { ok: false };
+}
 router.use(requireAuth, requireRole("admin"));
 
 // ---------- عرض شجري كامل للمحتوى (كل المراحل بلا استثناء) ----------
@@ -112,9 +123,11 @@ router.post("/episodes", (req, res) => {
   if (!series_id || !title) {
     return res.status(400).json({ error: "السلسلة وعنوان الحلقة مطلوبان." });
   }
+  const link = safeUrl(url);
+  if (!link.ok) return res.status(400).json({ error: "رابط الحلقة يجب أن يبدأ بـ http:// أو https://" });
   const info = db.prepare(
     `INSERT INTO episodes (series_id, title, url, duration, order_index) VALUES (?, ?, ?, ?, ?)`
-  ).run(series_id, title, url || null, duration || null, order_index || 0);
+  ).run(series_id, title, link.value, duration || null, order_index || 0);
   res.status(201).json({ id: Number(info.lastInsertRowid), title });
 });
 
@@ -129,9 +142,11 @@ router.post("/books", (req, res) => {
   if (!series_id || !title) {
     return res.status(400).json({ error: "السلسلة وعنوان الكتاب مطلوبان." });
   }
+  const link = safeUrl(file_url);
+  if (!link.ok) return res.status(400).json({ error: "رابط الكتاب يجب أن يبدأ بـ http:// أو https://" });
   const info = db.prepare(
     `INSERT INTO books (series_id, title, file_url, total_pages) VALUES (?, ?, ?, ?)`
-  ).run(series_id, title, file_url || null, total_pages || 0);
+  ).run(series_id, title, link.value, Math.max(0, parseInt(total_pages, 10) || 0));
   res.status(201).json({ id: Number(info.lastInsertRowid), title });
 });
 

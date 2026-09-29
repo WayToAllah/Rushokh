@@ -132,6 +132,17 @@ CREATE TABLE IF NOT EXISTS student_test_attempts (
   FOREIGN KEY (test_id) REFERENCES tests(id) ON DELETE CASCADE
 );
 
+-- إتمام الطالب لمرحلة (يُسجَّل تلقائيًا عند الانتقال، ويُستخدم لإصدار الشهادة)
+CREATE TABLE IF NOT EXISTS student_stage_completions (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  student_id      INTEGER NOT NULL,
+  stage_id        INTEGER NOT NULL,
+  completed_at    TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
+  FOREIGN KEY (stage_id) REFERENCES stages(id) ON DELETE CASCADE,
+  UNIQUE(student_id, stage_id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_stage_subject_stage ON stage_subject(stage_id);
 CREATE INDEX IF NOT EXISTS idx_series_stage_subject ON series(stage_subject_id);
 CREATE INDEX IF NOT EXISTS idx_episodes_series ON episodes(series_id);
