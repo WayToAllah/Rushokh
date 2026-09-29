@@ -1,7 +1,6 @@
 // routes/admin/reports.js
 // تصدير تقرير الطلاب وتقدمهم في كل مادة كملف Excel.
 const express = require("express");
-const ExcelJS = require("exceljs");
 const db = require("../../db/database");
 const { requireAuth, requireRole } = require("../../middleware/auth");
 const sp = require("../../lib/stage-progress");
@@ -86,6 +85,13 @@ function addPercentBar(sheet, colLetter) {
 
 router.get("/students.xlsx", async (req, res, next) => {
   try {
+    // بنحمّل المكتبة وقت الطلب بس، عشان الموقع يقوم عادي حتى لو المكتبة لسه بتتسطّب أثناء التحديث
+    let ExcelJS;
+    try {
+      ExcelJS = require("exceljs");
+    } catch (e) {
+      return res.status(503).json({ error: "مكتبة Excel لسه بتتسطّب، حاول تاني بعد دقيقة." });
+    }
     const students = db.prepare(
       `SELECT id, full_name, email, phone, age, address, is_blocked, created_at FROM students ORDER BY full_name`
     ).all();
