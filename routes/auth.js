@@ -11,7 +11,8 @@ const router = express.Router();
 const MIN_PASSWORD = 8;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// 10 محاولات دخول غلط لنفس البريد كل 15 دقيقة
+// 10 محاولات دخول غلط لنفس البريد من نفس الجهاز كل 15 دقيقة.
+// القفل على الجهاز اللي بيجرّب بس، عشان محدش يقدر يقفل حساب غيره (زي المشرف) بمحاولات غلط.
 const failedLogins = createLimiter({ windowMs: 15 * 60 * 1000, max: 10 });
 // 20 عملية (دخول/تسجيل) من نفس الجهاز في الدقيقة
 const perIp = createLimiter({ windowMs: 60 * 1000, max: 20 });
@@ -97,7 +98,8 @@ function login(roles, wrongMsg) {
       return res.status(400).json({ error: "البريد وكلمة المرور مطلوبان." });
     }
 
-    const wait = failedLogins.blockedFor(email);
+    const key = clientIp(req) + "|" + email;
+    const wait = failedLogins.blockedFor(key);
     if (wait) {
       return res.status(429).json({ error: `محاولات دخول خاطئة كثيرة، حاول مرة أخرى بعد ${wait} دقيقة.` });
     }
@@ -108,14 +110,14 @@ function login(roles, wrongMsg) {
       if (user) { role = r; break; }
     }
     if (!user) {
-      failedLogins.hit(email);
+      failedLogins.hit(key);
       return res.status(401).json({ error: wrongMsg });
     }
     if (role === "student" && user.is_blocked) {
       return res.status(403).json({ error: "تم إيقاف هذا الحساب، يرجى التواصل مع الإدارة." });
     }
 
-    failedLogins.reset(email);
+    failedLogins.reset(key);
     const profile = { id: user.id, full_name: user.full_name, email: user.email };
     res.json({ token: signToken({ id: user.id, role }), role, [role]: profile });
   };

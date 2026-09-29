@@ -419,7 +419,11 @@ async function apiFetch(path, options = {}) {
     logoutTo("index.html");
     throw new Error("انتهت الجلسة");
   }
-  if (!res.ok) throw new Error(data.error || "حدث خطأ غير متوقع.");
+  if (!res.ok) {
+    const err = new Error(data.error || "حدث خطأ غير متوقع.");
+    err.data = data;
+    throw err;
+  }
   return data;
 }
 
@@ -908,10 +912,18 @@ async function loadStudents() {
       sel.addEventListener("change", async () => {
         const name = sel.options[sel.selectedIndex].text;
         if (!confirm(`نقل الطالب يدويًا لمرحلة ${name}؟`)) { sel.value = original; return; }
+        const move = reset => apiFetch(`/admin/students/${sel.dataset.stageFor}/stage`, {
+          method: "PATCH", body: JSON.stringify({ stage_id: parseInt(sel.value, 10), reset }),
+        });
         try {
-          await apiFetch(`/admin/students/${sel.dataset.stageFor}/stage`, {
-            method: "PATCH", body: JSON.stringify({ stage_id: parseInt(sel.value, 10) }),
-          });
+          try {
+            await move(false);
+          } catch (err) {
+            // الطالب خلّص المرحلة دي: الرجوع ليها معناه إنه يعيدها، والسيرفر عايز تأكيد قبل ما يمسح تقدمه
+            if (!(err.data && err.data.needs_reset)) throw err;
+            if (!confirm(`⚠️ ${err.message}\n\nمتأكد إنه يعيدها من الأول؟`)) { sel.value = original; return; }
+            await move(true);
+          }
           await loadStudents();
         } catch (err) { alert(err.message); sel.value = original; }
       });

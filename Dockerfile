@@ -15,7 +15,10 @@ USER node
 
 ENV NODE_ENV=production
 ENV PORT=7860
+# الطلبات بتعدّي على بروكسي الاستضافة، فحد المحاولات بياخد عنوان الزائر من x-forwarded-for
+ENV TRUST_PROXY=1
 EXPOSE 7860
 
-# يعبّي قاعدة البيانات لو فاضية، بعدين يشغّل السيرفر
+# يعبّي قاعدة البيانات لو فاضية، بعدين يشغّل السيرفر.
+# حط ADMIN_EMAIL و ADMIN_PASSWORD كـ Secrets، وإلا كلمة مرور المشرف بتطلع عشوائية في الـ Logs.
 CMD ["sh", "-c", "node db/ensure-seed.js && node server.js"]

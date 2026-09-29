@@ -6,6 +6,9 @@ const path = require("path");
 const fs = require("fs");
 const { DatabaseSync } = require("node:sqlite");
 
+// عشان السكريبتات (seed / ensure-seed / create-admin) تقرا .env زي السيرفر بالظبط (DB_PATH و ADMIN_* مثلاً)
+require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
+
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, "rasokh.db");
 const SCHEMA_PATH = path.join(__dirname, "schema.sql");
 

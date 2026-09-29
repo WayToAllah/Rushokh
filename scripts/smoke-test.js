@@ -42,11 +42,15 @@ async function call(method, path, { token, body, headers } = {}) {
   const weak = await call("POST", "/auth/register", { headers: ip(), body: { full_name: "ضعيف", email: `weak${uniq}@t.com`, password: "1" } });
   check("كلمة مرور قصيرة مرفوضة", weak.status === 400, weak.status);
 
+  // المحاولات الغلط بتقفل الجهاز اللي بيجرّب بس، مش صاحب الحساب
+  const attacker = { "cf-connecting-ip": "10.66.0.1" };
   let lastStatus;
   for (let i = 0; i < 11; i++) {
-    lastStatus = (await call("POST", "/auth/login", { headers: ip(), body: { email: "ahmed@rasokh.test", password: "wrong-pass" } })).status;
+    lastStatus = (await call("POST", "/auth/login", { headers: attacker, body: { email: "ahmed@rasokh.test", password: "wrong-pass" } })).status;
   }
   check("المحاولة رقم 11 الغلط بتتقفل (429)", lastStatus === 429, lastStatus);
+  const owner = await call("POST", "/auth/login", { headers: ip(), body: { email: "ahmed@rasokh.test", password: "student123" } });
+  check("صاحب الحساب بيدخل عادي من جهازه رغم القفل", owner.status === 200, owner.status);
 
   const admin = await call("POST", "/auth/admin-login", { headers: ip(), body: { email: "ADMIN@rasokh.test", password: "admin123" } });
   check("دخول المشرف (البريد بحروف كبيرة يشتغل)", admin.status === 200, admin.status);
@@ -106,8 +110,15 @@ async function call(method, path, { token, body, headers } = {}) {
   // ---------- المشرف ----------
   const stu = (await call("GET", "/admin/students", { token: A })).data.find(s => s.id === reg.data.student.id);
   check("الاسم اللي فيه كود محفوظ كنص (الصفحة هي اللي لازم تعرضه آمن)", stu.full_name.includes("<img"));
-  const move = await call("PATCH", `/admin/students/${stu.id}/stage`, { token: A, body: { stage_id: current.id } });
-  check("المشرف ينقل الطالب يدويًا", move.status === 200, move.data);
+  // الرجوع لمرحلة الطالب خلّصها = يعيدها، والسيرفر بيطلب تأكيد قبل ما يمسح تقدمه
+  const moveNoConfirm = await call("PATCH", `/admin/students/${stu.id}/stage`, { token: A, body: { stage_id: current.id } });
+  check("الرجوع لمرحلة الطالب خلّصها بيطلب تأكيد الأول", moveNoConfirm.status === 409 && moveNoConfirm.data.needs_reset === true, moveNoConfirm.status);
+  const move = await call("PATCH", `/admin/students/${stu.id}/stage`, { token: A, body: { stage_id: current.id, reset: true } });
+  const redo = (await call("GET", "/curriculum", { token: T })).data.stages.find(s => s.status === "current");
+  const certRedo = (await call("GET", `/progress/certificate/${current.id}`, { token: T })).data;
+  check("بعد التأكيد: الطالب بيعيد المرحلة من الأول وما بيرجعش لوحده",
+    move.status === 200 && redo.name === current.name && redo.progress.percent === 0 && certRedo.eligible === false,
+    { stage: redo.name, percent: redo.progress.percent, certificate: certRedo.eligible });
 
   const blk = await call("PATCH", `/admin/students/${stu.id}/block`, { token: A, body: { is_blocked: true } });
   const afterBlock = await call("GET", "/curriculum", { token: T });
@@ -122,7 +133,7 @@ async function call(method, path, { token, body, headers } = {}) {
 
   // ---------- التعديل والترتيب ----------
   const H = { token: A };
-  // طالب جديد (أحمد اتقفل مؤقتًا من اختبار المحاولات الغلط فوق)، ونحطه في المرحلة الأولى
+  // طالب جديد، ونحطه في المرحلة الأولى (نقل لقدّام من غير تأكيد)
   const reg2 = await call("POST", "/auth/register", { headers: ip(), body: { full_name: "طالب التعديل", email: `edit${uniq}@t.com`, password: "password123" } });
   const T2 = reg2.data.token;
   let t2 = (await call("GET", "/admin/content/tree", H)).data;

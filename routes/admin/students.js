@@ -27,12 +27,31 @@ router.patch("/:id/block", (req, res) => {
   res.json({ ok: true });
 });
 
-// ---------- نقل طالب لمرحلة معيّنة يدويًا (لتصحيح الأخطاء مثلاً) ----------
+// ---------- نقل طالب لمرحلة معيّنة يدويًا ----------
+// الرجوع لمرحلة الطالب خلّصها معناه إنه "يعيدها": بيتمسح تقدمه فيها وفي كل اللي بعدها، وشهاداتها.
+// (من غير المسح كان هيرجع للمرحلة اللي بعدها لوحده أول ما يفتح صفحته، لأنها مكتملة.)
+// المسح محتاج تأكيد صريح { reset: true }، وإلا السيرفر بيرد 409 بـ needs_reset.
 router.patch("/:id/stage", (req, res) => {
+  const student = db.prepare(`SELECT id FROM students WHERE id = ?`).get(req.params.id);
+  if (!student) return res.status(404).json({ error: "الطالب غير موجود." });
   const stage = db.prepare(`SELECT id, name FROM stages WHERE id = ?`).get(req.body.stage_id);
   if (!stage) return res.status(400).json({ error: "المرحلة غير موجودة." });
-  const info = db.prepare(`UPDATE students SET current_stage_id = ? WHERE id = ?`).run(stage.id, req.params.id);
-  if (info.changes === 0) return res.status(404).json({ error: "الطالب غير موجود." });
+
+  const ids = sp.orderedStageIds();
+  const current = sp.ensureCurrentStage(student.id);
+  const movingBack = current && ids.indexOf(stage.id) < ids.indexOf(current.id);
+  if (movingBack && sp.stageProgress(student.id, stage.id).complete) {
+    if (req.body.reset !== true) {
+      return res.status(409).json({
+        needs_reset: true,
+        error: `الطالب خلّص مرحلة ${stage.name} قبل كده. عشان يعيدها لازم يتمسح تقدمه فيها وفي كل المراحل اللي بعدها، وشهاداتها كمان.`,
+      });
+    }
+    sp.restartFromStage(student.id, stage.id);
+    return res.json({ ok: true, stage_name: stage.name, reset: true });
+  }
+
+  db.prepare(`UPDATE students SET current_stage_id = ? WHERE id = ?`).run(stage.id, student.id);
   res.json({ ok: true, stage_name: stage.name });
 });
 

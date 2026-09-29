@@ -19,14 +19,15 @@ function clearAll() {
   tables.forEach(t => db.exec(`DELETE FROM ${t};`));
 }
 
-function seed() {
+// الافتراضي (npm run seed) بيانات تجربة معروفة. أول تشغيل تلقائي (ensure-seed) بيبعت كلمة مرور غير معروفة ومن غير طالب تجريبي.
+function seed({ adminEmail = "admin@rasokh.test", adminPassword = "admin123", demoStudent = true } = {}) {
   clearAll();
 
   // ---- مشرف افتراضي ----
-  const adminHash = bcrypt.hashSync("admin123", 10);
+  const adminHash = bcrypt.hashSync(adminPassword, 10);
   run(
     `INSERT INTO admins (full_name, email, password_hash) VALUES (?, ?, ?)`,
-    ["مشرف المنصة", "admin@rasokh.test", adminHash]
+    ["مشرف المنصة", adminEmail, adminHash]
   );
 
   // ---- المراحل ----
@@ -174,23 +175,23 @@ function seed() {
     [seriesHadith, "متن الأربعين النووية", 16]);
 
   // ---- طالب تجريبي ----
-  const studentHash = bcrypt.hashSync("student123", 10);
-  const ahmedId = Number(run(
-    `INSERT INTO students (full_name, email, phone, age, address, password_hash, current_stage_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    ["أحمد بن سالم العتيبي", "ahmed@rasokh.test", "0500000000", 22, "الرياض", studentHash, stageIds["الأولى"]]
-  ).lastInsertRowid);
+  if (demoStudent) {
+    const studentHash = bcrypt.hashSync("student123", 10);
+    const ahmedId = Number(run(
+      `INSERT INTO students (full_name, email, phone, age, address, password_hash, current_stage_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      ["أحمد بن سالم العتيبي", "ahmed@rasokh.test", "0500000000", 22, "الرياض", studentHash, stageIds["الأولى"]]
+    ).lastInsertRowid);
 
-  // أحمد أتم التمهيدية بالكامل (عشان تظهر شهادتها في التجربة)
-  introEpisodeIds.forEach(id => run(
-    `INSERT INTO student_episode_progress (student_id, episode_id, listened) VALUES (?, ?, 1)`, [ahmedId, id]));
-  run(`INSERT INTO student_book_progress (student_id, book_id, current_page) VALUES (?, ?, 40)`, [ahmedId, introBookId]);
-  run(`INSERT INTO student_test_attempts (student_id, test_id, score, passed) VALUES (?, ?, 100, 1)`, [ahmedId, introTestId]);
-  run(`INSERT INTO student_stage_completions (student_id, stage_id) VALUES (?, ?)`, [ahmedId, stageIds["التمهيدية"]]);
+    // أحمد أتم التمهيدية بالكامل (عشان تظهر شهادتها في التجربة)
+    introEpisodeIds.forEach(id => run(
+      `INSERT INTO student_episode_progress (student_id, episode_id, listened) VALUES (?, ?, 1)`, [ahmedId, id]));
+    run(`INSERT INTO student_book_progress (student_id, book_id, current_page) VALUES (?, ?, 40)`, [ahmedId, introBookId]);
+    run(`INSERT INTO student_test_attempts (student_id, test_id, score, passed) VALUES (?, ?, 100, 1)`, [ahmedId, introTestId]);
+    run(`INSERT INTO student_stage_completions (student_id, stage_id) VALUES (?, ?)`, [ahmedId, stageIds["التمهيدية"]]);
+  }
 
   console.log("✅ تم تعبئة قاعدة البيانات بنجاح.");
-  console.log("   دخول المشرف   -> admin@rasokh.test / admin123");
-  console.log("   دخول الطالب   -> ahmed@rasokh.test / student123");
 }
 
 function hasAnyData() {
@@ -218,4 +219,7 @@ if (require.main === module) {
     if (file) console.log(`💾 نسخة احتياطية قبل المسح: ${file}`);
   }
   seed();
+  console.log("   دخول المشرف   -> admin@rasokh.test / admin123");
+  console.log("   دخول الطالب   -> ahmed@rasokh.test / student123");
+  console.log("   ⚠️ دي بيانات تجربة معروفة، ما تفتحش الموقع بيها لحد.");
 }
