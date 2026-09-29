@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>رسوخ | لوحة المشرف</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F5F0E2; --bg-raised:#FBF8EE; --ink:#1B2C28; --ink-soft:#4A5C56;
+    --teal-900:#0E332F; --teal-700:#1F5951; --teal-600:#2C6E64;
+    --gold:#B9924F; --gold-light:#E4C77E; --sage:#7C9683; --terracotta:#A8503A;
+    --line:#DCD3B8; --line-soft:#E9E2CB; --shadow: 0 8px 24px rgba(14,51,47,.10);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:'IBM Plex Sans Arabic', sans-serif; min-height:100vh; padding-bottom:60px;
+  }
+  h1,h2,h3,.brand{font-family:'Amiri', serif;}
+  button{font-family:inherit; cursor:pointer;}
+  :focus-visible{outline:2px solid var(--teal-700); outline-offset:2px;}
+
+  .topbar{
+    background:var(--teal-900); color:var(--bg-raised); padding:16px 20px;
+    display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+    position:sticky; top:0; z-index:30; box-shadow:var(--shadow);
+  }
+  .brand{font-size:1.5rem; font-weight:700; color:var(--gold-light);}
+  .brand small{font-family:'IBM Plex Sans Arabic'; font-size:.65rem; color:#C9BFA0; font-weight:400; margin-right:8px;}
+  .pill-btn{
+    background:transparent; border:1px solid #3F615A; color:var(--bg-raised);
+    padding:8px 14px; border-radius:999px; font-size:.85rem;
+  }
+  .pill-btn:hover{background:#173F3A; border-color:var(--gold);}
+
+  .tabs{
+    max-width:1100px; margin:26px auto 0; padding:0 20px;
+    display:flex; gap:6px; flex-wrap:wrap; border-bottom:1px solid var(--line);
+  }
+  .tab-btn{
+    background:none; border:none; padding:12px 18px; font-size:.9rem; font-weight:600;
+    color:var(--ink-soft); border-bottom:3px solid transparent; margin-bottom:-1px;
+  }
+  .tab-btn.active{color:var(--teal-900); border-bottom-color:var(--gold);}
+  .tab-panel{display:none; max-width:1100px; margin:24px auto; padding:0 20px;}
+  .tab-panel.active{display:block;}
+
+  .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:18px;}
+  @media (max-width:800px){.grid-2{grid-template-columns:1fr;}}
+
+  .panel-card{
+    background:var(--bg-raised); border:1px solid var(--line); border-radius:14px;
+    padding:20px; box-shadow:var(--shadow); margin-bottom:18px;
+  }
+  .panel-card h3{margin:0 0 4px; font-size:1.05rem; color:var(--teal-900); display:flex; align-items:center; gap:8px;}
+  .panel-card h3::before{content:"◆"; color:var(--gold); font-size:.65rem;}
+  .panel-card .hint{font-size:.75rem; color:var(--ink-soft); margin:0 0 14px;}
+
+  label{display:block; font-size:.76rem; color:var(--ink-soft); margin-bottom:5px;}
+  input, select, textarea{
+    width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:8px;
+    font-family:inherit; font-size:.85rem; margin-bottom:12px; background:#fff; color:var(--ink);
+  }
+  input:focus, select:focus, textarea:focus{border-color:var(--teal-700);}
+  .row-2{display:flex; gap:10px;}
+  .row-2 > div{flex:1;}
+
+  .btn{
+    padding:9px 16px; border:none; border-radius:8px; font-size:.83rem; font-weight:600;
+    background:var(--teal-700); color:#fff;
+  }
+  .btn:hover{background:var(--teal-900);}
+  .btn.danger{background:transparent; border:1px solid var(--terracotta); color:var(--terracotta); padding:5px 10px; font-weight:500;}
+  .btn.danger:hover{background:rgba(168,80,58,.1);}
+  .btn.small{padding:5px 10px; font-size:.75rem;}
+  .btn.outline{background:transparent; border:1px solid var(--teal-700); color:var(--teal-700);}
+
+  .msg{font-size:.8rem; padding:9px 12px; border-radius:8px; margin-bottom:12px; display:none;}
+  .msg.ok{background:rgba(124,150,131,.18); color:var(--teal-900); display:block;}
+  .msg.err{background:rgba(168,80,58,.1); color:var(--terracotta); display:block;}
+
+  /* ===== Tree view ===== */
+  .tree-stage{border:1px solid var(--line); border-radius:12px; margin-bottom:14px; overflow:hidden; background:var(--bg-raised);}
+  .tree-stage > .head{padding:12px 16px; background:rgba(185,146,79,.08); display:flex; justify-content:space-between; align-items:center;}
+  .tree-stage > .head strong{color:var(--teal-900);}
+  .tree-subject{padding:10px 16px 10px 28px; border-top:1px dashed var(--line);}
+  .tree-subject > .head{display:flex; justify-content:space-between; align-items:center; font-weight:600; color:var(--teal-700); font-size:.9rem;}
+  .tree-series{margin:8px 0 0 16px; padding:8px 12px; background:var(--bg); border-radius:8px;}
+  .tree-series > .head{display:flex; justify-content:space-between; align-items:center; font-size:.85rem; font-weight:600;}
+  .tree-item-list{list-style:none; margin:8px 0 0; padding:0; font-size:.8rem;}
+  .tree-item-list li{display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid var(--line-soft);}
+  .tree-item-list li:last-child{border-bottom:none;}
+  .empty-note{color:var(--ink-soft); font-size:.78rem; padding:6px 0;}
+
+  /* ===== Students table ===== */
+  table{width:100%; border-collapse:collapse; font-size:.85rem;}
+  th, td{padding:10px 8px; text-align:right; border-bottom:1px solid var(--line-soft);}
+  th{color:var(--ink-soft); font-weight:600; font-size:.78rem;}
+  .badge{padding:3px 10px; border-radius:999px; font-size:.72rem; font-weight:600;}
+  .badge.active{background:rgba(124,150,131,.2); color:var(--teal-900);}
+  .badge.blocked{background:rgba(168,80,58,.15); color:var(--terracotta);}
+
+  /* ===== Modal ===== */
+  .overlay{position:fixed; inset:0; background:rgba(14,20,18,.55); display:none; align-items:flex-start; justify-content:center; padding:40px 16px; overflow-y:auto; z-index:50;}
+  .overlay.show{display:flex;}
+  .modal{background:var(--bg-raised); border-radius:16px; max-width:560px; width:100%; padding:26px; position:relative;}
+  .modal-close{position:absolute; top:16px; left:16px; background:none; border:none; font-size:1.3rem; color:var(--ink-soft);}
+
+  .opt-row{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
+  .opt-row input[type="text"]{margin-bottom:0; flex:1;}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">رسوخ <small>لوحة المشرف</small></div>
+  <div>
+    <button class="pill-btn" id="btnLogout">تسجيل خروج</button>
+  </div>
+</header>
+
+<nav class="tabs" id="tabsNav">
+  <button class="tab-btn active" data-tab="content-manage">إدارة المحتوى</button>
+  <button class="tab-btn" data-tab="content-view">عرض المحتوى</button>
+  <button class="tab-btn" data-tab="tests">الاختبارات</button>
+  <button class="tab-btn" data-tab="students">الطلاب</button>
+</nav>
+
+<!-- ======================= تبويب: إدارة المحتوى ======================= -->
+<section class="tab-panel active" id="tab-content-manage">
+  <div class="grid-2">
+
+    <div class="panel-card">
+      <h3>إضافة مرحلة</h3>
+      <p class="hint">مثال: التمهيدية، الأولى، الثانية...</p>
+      <div class="msg" id="msg-stage"></div>
+      <form id="formStage">
+        <label>اسم المرحلة</label>
+        <input type="text" id="stageName" required>
+        <label>الترتيب (رقم، الأصغر يظهر أولاً)</label>
+        <input type="number" id="stageOrder" value="0" min="0">
+        <button class="btn" type="submit">إضافة</button>
+      </form>
+    </div>
+
+    <div class="panel-card">
+      <h3>إضافة قسم</h3>
+      <p class="hint">مثال: الفقه، التفسير، الحديث...</p>
+      <div class="msg" id="msg-subject"></div>
+      <form id="formSubject">
+        <label>اسم القسم</label>
+        <input type="text" id="subjectName" required>
+        <label>أيقونة (اختياري، إيموجي)</label>
+        <input type="text" id="subjectIcon" placeholder="⚖️">
+        <button class="btn" type="submit">إضافة</button>
+      </form>
+    </div>
+
+    <div class="panel-card">
+      <h3>ربط قسم بمرحلة</h3>
+      <p class="hint">اختر المرحلة والقسم اللي عايز تربطهم ببعض</p>
+      <div class="msg" id="msg-link"></div>
+      <form id="formLink">
+        <label>المرحلة</label>
+        <select id="linkStage" required></select>
+        <label>القسم</label>
+        <select id="linkSubject" required></select>
+        <button class="btn" type="submit">ربط</button>
+      </form>
+    </div>
+
+    <div class="panel-card">
+      <h3>إضافة سلسلة</h3>
+      <p class="hint">السلسلة تنتمي لقسم داخل مرحلة محددة (لازم يكون مربوطين الأول)</p>
+      <div class="msg" id="msg-series"></div>
+      <form id="formSeries">
+        <label>القسم داخل المرحلة</label>
+        <select id="seriesStageSubject" required></select>
+        <label>اسم السلسلة</label>
+        <input type="text" id="seriesName" required>
+        <button class="btn" type="submit">إضافة</button>
+      </form>
+    </div>
+
+    <div class="panel-card">
+      <h3>إضافة حلقة</h3>
+      <div class="msg" id="msg-episode"></div>
+      <form id="formEpisode">
+        <label>السلسلة</label>
+        <select id="episodeSeries" required></select>
+        <label>عنوان الحلقة</label>
+        <input type="text" id="episodeTitle" required>
+        <div class="row-2">
+          <div><label>المدة (مثال: 40 د)</label><input type="text" id="episodeDuration"></div>
+          <div><label>رابط (اختياري)</label><input type="text" id="episodeUrl"></div>
+        </div>
+        <button class="btn" type="submit">إضافة</button>
+      </form>
+    </div>
+
+    <div class="panel-card">
+      <h3>إضافة كتاب</h3>
+      <div class="msg" id="msg-book"></div>
+      <form id="formBook">
+        <label>السلسلة</label>
+        <select id="bookSeries" required></select>
+        <label>عنوان الكتاب</label>
+        <input type="text" id="bookTitle" required>
+        <div class="row-2">
+          <div><label>عدد الصفحات</label><input type="number" id="bookPages" min="0" required></div>
+          <div><label>رابط الملف (اختياري)</label><input type="text" id="bookUrl"></div>
+        </div>
+        <button class="btn" type="submit">إضافة</button>
+      </form>
+    </div>
+
+  </div>
+</section>
+
+<!-- ======================= تبويب: عرض المحتوى ======================= -->
+<section class="tab-panel" id="tab-content-view">
+  <div class="panel-card">
+    <h3>الشجرة الكاملة للمحتوى</h3>
+    <p class="hint">اضغط 🗑 لحذف أي عنصر (سيُحذف كل ما بداخله أيضًا)</p>
+    <div id="contentTree">جارٍ التحميل...</div>
+  </div>
+</section>
+
+<!-- ======================= تبويب: الاختبارات ======================= -->
+<section class="tab-panel" id="tab-tests">
+  <div class="grid-2">
+    <div class="panel-card">
+      <h3>إنشاء اختبار جديد</h3>
+      <div class="msg" id="msg-test"></div>
+      <form id="formTest">
+        <label>السلسلة</label>
+        <select id="testSeries" required></select>
+        <label>عنوان الاختبار</label>
+        <input type="text" id="testTitle" required>
+        <label>نسبة النجاح (%)</label>
+        <input type="number" id="testPassPercent" value="60" min="1" max="100">
+        <button class="btn" type="submit">إنشاء</button>
+      </form>
+    </div>
+
+    <div class="panel-card">
+      <h3>إضافة سؤال</h3>
+      <div class="msg" id="msg-question"></div>
+      <form id="formQuestion">
+        <label>الاختبار</label>
+        <select id="questionTest" required></select>
+        <label>نص السؤال</label>
+        <textarea id="questionText" rows="2" required></textarea>
+        <label>الخيارات (حدد الصحيح)</label>
+        <div id="optionsWrap">
+          <div class="opt-row"><input type="radio" name="correctOpt" value="0" checked><input type="text" class="opt-text" placeholder="خيار 1" required></div>
+          <div class="opt-row"><input type="radio" name="correctOpt" value="1"><input type="text" class="opt-text" placeholder="خيار 2" required></div>
+          <div class="opt-row"><input type="radio" name="correctOpt" value="2"><input type="text" class="opt-text" placeholder="خيار 3"></div>
+          <div class="opt-row"><input type="radio" name="correctOpt" value="3"><input type="text" class="opt-text" placeholder="خيار 4"></div>
+        </div>
+        <button class="btn" type="submit">إضافة السؤال</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="panel-card">
+    <h3>الاختبارات الحالية</h3>
+    <div id="testsList">جارٍ التحميل...</div>
+  </div>
+</section>
+
+<!-- ======================= تبويب: الطلاب ======================= -->
+<section class="tab-panel" id="tab-students">
+  <div class="panel-card">
+    <h3>قائمة الطلاب</h3>
+    <div id="studentsTableWrap">جارٍ التحميل...</div>
+  </div>
+</section>
+
+<!-- نافذة تقرير الطالب -->
+<div class="overlay" id="reportOverlay">
+  <div class="modal">
+    <button class="modal-close" data-close="reportOverlay">✕</button>
+    <div id="reportModalBody"></div>
+  </div>
+</div>
+
+<script>
+const API_BASE = "/api"; // نسبي: يعمل محليًا وبعد النشر بدون تعديل
+let authToken = localStorage.getItem("rasokh_token") || null;
+let treeData = []; // بيانات الشجرة الكاملة، تُستخدم لتعبئة كل القوائم المنسدلة
+
+/* ======================= تأمين الوصول: لازم توكن مشرف ======================= */
+if (!authToken || localStorage.getItem("rasokh_role") !== "admin") {
+  window.location.href = "index.html";
+}
+
+async function apiFetch(path, options = {}) {
+  const res = await fetch(API_BASE + path, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(authToken ? { Authorization: "Bearer " + authToken } : {}),
+      ...(options.headers || {}),
+    },
+  });
+  let data = {};
+  try { data = await res.json(); } catch (e) {}
+  if (res.status === 401 || res.status === 403) {
+    localStorage.removeItem("rasokh_token");
+    localStorage.removeItem("rasokh_role");
+    window.location.href = "index.html";
+    throw new Error("انتهت الجلسة");
+  }
+  if (!res.ok) throw new Error(data.error || "حدث خطأ غير متوقع.");
+  return data;
+}
+
+function showMsg(id, text, ok) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = "msg " + (ok ? "ok" : "err");
+}
+
+document.getElementById("btnLogout").addEventListener("click", () => {
+  if (!confirm("هل تريد تسجيل الخروج؟")) return;
+  localStorage.removeItem("rasokh_token");
+  localStorage.removeItem("rasokh_role");
+  window.location.href = "index.html";
+});
+
+/* ======================= التبويبات ======================= */
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("tab-" + btn.dataset.tab).classList.add("active");
+  });
+});
+
+document.querySelectorAll("[data-close]").forEach(btn => {
+  btn.addEventListener("click", () => document.getElementById(btn.dataset.close).classList.remove("show"));
+});
+
+/* ======================= تحميل الشجرة وتعبئة كل القوائم ======================= */
+async function refreshAll() {
+  const [tree, stages, subjects, tests] = await Promise.all([
+    apiFetch("/admin/content/tree"),
+    apiFetch("/admin/content/stages"),
+    apiFetch("/admin/content/subjects"),
+    apiFetch("/admin/tests"),
+  ]);
+  treeData = tree;
+  populateSelects(stages, subjects);
+  renderTree(tree);
+  renderTestsList(tests);
+  populateTestAndQuestionSelects(tree, tests);
+  loadStudents();
+}
+
+function populateSelects(stages, subjects) {
+  const stageSel = document.getElementById("linkStage");
+  stageSel.innerHTML = stages.map(s => `<option value="${s.id}">${s.name}</option>`).join("");
+  const subjSel = document.getElementById("linkSubject");
+  subjSel.innerHTML = subjects.map(s => `<option value="${s.id}">${s.name}</option>`).join("");
+}
+
+function flattenStageSubjects(tree) {
+  const list = [];
+  tree.forEach(stage => {
+    stage.subjects.forEach(subj => {
+      list.push({ stage_subject_id: subj.stage_subject_id, label: `${stage.name} — ${subj.name}` });
+    });
+  });
+  return list;
+}
+
+function flattenSeries(tree) {
+  const list = [];
+  tree.forEach(stage => {
+    stage.subjects.forEach(subj => {
+      subj.series.forEach(s => {
+        list.push({ id: s.id, label: `${stage.name} — ${subj.name} — ${s.name}` });
+      });
+    });
+  });
+  return list;
+}
+
+function populateTestAndQuestionSelects(tree, tests) {
+  const series = flattenSeries(tree);
+  document.getElementById("testSeries").innerHTML = series.map(s => `<option value="${s.id}">${s.label}</option>`).join("");
+
+  const questionTestSel = document.getElementById("questionTest");
+  questionTestSel.innerHTML = tests.map(t => `<option value="${t.id}">${t.title}</option>`).join("");
+
+  const stageSubjects = flattenStageSubjects(tree);
+  document.getElementById("seriesStageSubject").innerHTML = stageSubjects.map(s => `<option value="${s.stage_subject_id}">${s.label}</option>`).join("");
+
+  document.getElementById("episodeSeries").innerHTML = series.map(s => `<option value="${s.id}">${s.label}</option>`).join("");
+  document.getElementById("bookSeries").innerHTML = series.map(s => `<option value="${s.id}">${s.label}</option>`).join("");
+}
+
+/* ======================= إدارة المحتوى: الفورمات ======================= */
+document.getElementById("formStage").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    await apiFetch("/admin/content/stages", { method: "POST", body: JSON.stringify({
+      name: document.getElementById("stageName").value.trim(),
+      order_index: parseInt(document.getElementById("stageOrder").value, 10) || 0,
+    }) });
+    showMsg("msg-stage", "تمت الإضافة بنجاح.", true);
+    e.target.reset();
+    await refreshAll();
+  } catch (err) { showMsg("msg-stage", err.message, false); }
+});
+
+document.getElementById("formSubject").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    await apiFetch("/admin/content/subjects", { method: "POST", body: JSON.stringify({
+      name: document.getElementById("subjectName").value.trim(),
+      icon: document.getElementById("subjectIcon").value.trim(),
+    }) });
+    showMsg("msg-subject", "تمت الإضافة بنجاح.", true);
+    e.target.reset();
+    await refreshAll();
+  } catch (err) { showMsg("msg-subject", err.message, false); }
+});
+
+document.getElementById("formLink").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    await apiFetch("/admin/content/stage-subject", { method: "POST", body: JSON.stringify({
+      stage_id: parseInt(document.getElementById("linkStage").value, 10),
+      subject_id: parseInt(document.getElementById("linkSubject").value, 10),
+    }) });
+    showMsg("msg-link", "تم الربط بنجاح.", true);
+    await refreshAll();
+  } catch (err) { showMsg("msg-link", err.message, false); }
+});
+
+document.getElementById("formSeries").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    await apiFetch("/admin/content/series", { method: "POST", body: JSON.stringify({
+      stage_subject_id: parseInt(document.getElementById("seriesStageSubject").value, 10),
+      name: document.getElementById("seriesName").value.trim(),
+    }) });
+    showMsg("msg-series", "تمت الإضافة بنجاح.", true);
+    e.target.reset();
+    await refreshAll();
+  } catch (err) { showMsg("msg-series", err.message, false); }
+});
+
+document.getElementById("formEpisode").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    await apiFetch("/admin/content/episodes", { method: "POST", body: JSON.stringify({
+      series_id: parseInt(document.getElementById("episodeSeries").value, 10),
+      title: document.getElementById("episodeTitle").value.trim(),
+      duration: document.getElementById("episodeDuration").value.trim(),
+      url: document.getElementById("episodeUrl").value.trim(),
+    }) });
+    showMsg("msg-episode", "تمت الإضافة بنجاح.", true);
+    e.target.reset();
+    await refreshAll();
+  } catch (err) { showMsg("msg-episode", err.message, false); }
+});
+
+document.getElementById("formBook").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    await apiFetch("/admin/content/books", { method: "POST", body: JSON.stringify({
+      series_id: parseInt(document.getElementById("bookSeries").value, 10),
+      title: document.getElementById("bookTitle").value.trim(),
+      total_pages: parseInt(document.getElementById("bookPages").value, 10) || 0,
+      file_url: document.getElementById("bookUrl").value.trim(),
+    }) });
+    showMsg("msg-book", "تمت الإضافة بنجاح.", true);
+    e.target.reset();
+    await refreshAll();
+  } catch (err) { showMsg("msg-book", err.message, false); }
+});
+
+/* ======================= عرض المحتوى (الشجرة) ======================= */
+function renderTree(tree) {
+  const el = document.getElementById("contentTree");
+  if (tree.length === 0) { el.innerHTML = `<p class="empty-note">لا توجد مراحل بعد.</p>`; return; }
+
+  el.innerHTML = tree.map(stage => `
+    <div class="tree-stage">
+      <div class="head">
+        <strong>📚 ${stage.name}</strong>
+        <button class="btn danger small" data-del="stages" data-id="${stage.id}">🗑 حذف المرحلة</button>
+      </div>
+      ${stage.subjects.length === 0
+        ? `<p class="empty-note" style="padding:10px 16px;">لا يوجد أقسام مربوطة بهذه المرحلة.</p>`
+        : stage.subjects.map(subj => `
+          <div class="tree-subject">
+            <div class="head">
+              <span>${subj.icon || ""} ${subj.name}</span>
+              <button class="btn danger small" data-del="stage-subject" data-id="${subj.stage_subject_id}">🗑 فك الربط</button>
+            </div>
+            ${subj.series.length === 0
+              ? `<p class="empty-note">لا يوجد سلاسل.</p>`
+              : subj.series.map(s => `
+                <div class="tree-series">
+                  <div class="head">
+                    <span>◆ ${s.name}</span>
+                    <button class="btn danger small" data-del="series" data-id="${s.id}">🗑 حذف السلسلة</button>
+                  </div>
+                  <ul class="tree-item-list">
+                    ${s.episodes.map(e => `<li>▶️ ${e.title} <button class="btn danger small" data-del="episodes" data-id="${e.id}">🗑</button></li>`).join("")}
+                    ${s.books.map(b => `<li>📖 ${b.title} (${b.total_pages} صفحة) <button class="btn danger small" data-del="books" data-id="${b.id}">🗑</button></li>`).join("")}
+                    ${s.test ? `<li>📝 اختبار: ${s.test.title} <button class="btn danger small" data-del="tests" data-id="${s.test.id}">🗑</button></li>` : ""}
+                  </ul>
+                </div>
+              `).join("")}
+          </div>
+        `).join("")
+      }
+    </div>
+  `).join("");
+
+  el.querySelectorAll("[data-del]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("متأكد من الحذف؟ سيُحذف كل ما بداخل هذا العنصر أيضًا.")) return;
+      const endpointMap = {
+        stages: "/admin/content/stages/",
+        "stage-subject": "/admin/content/stage-subject/",
+        series: "/admin/content/series/",
+        episodes: "/admin/content/episodes/",
+        books: "/admin/content/books/",
+        tests: "/admin/tests/",
+      };
+      try {
+        await apiFetch(endpointMap[btn.dataset.del] + btn.dataset.id, { method: "DELETE" });
+        await refreshAll();
+      } catch (err) { alert(err.message); }
+    });
+  });
+}
+
+/* ======================= الاختبارات ======================= */
+document.getElementById("formTest").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    await apiFetch("/admin/tests", { method: "POST", body: JSON.stringify({
+      series_id: parseInt(document.getElementById("testSeries").value, 10),
+      title: document.getElementById("testTitle").value.trim(),
+      pass_percent: parseInt(document.getElementById("testPassPercent").value, 10) || 60,
+    }) });
+    showMsg("msg-test", "تم إنشاء الاختبار.", true);
+    e.target.reset();
+    await refreshAll();
+  } catch (err) { showMsg("msg-test", err.message, false); }
+});
+
+document.getElementById("formQuestion").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const correctIdx = parseInt(document.querySelector('input[name="correctOpt"]:checked').value, 10);
+  const optionTexts = Array.from(document.querySelectorAll(".opt-text")).map(i => i.value.trim());
+  const options = optionTexts
+    .map((text, i) => ({ text, is_correct: i === correctIdx }))
+    .filter(o => o.text !== "");
+
+  try {
+    await apiFetch("/admin/tests/questions", { method: "POST", body: JSON.stringify({
+      test_id: parseInt(document.getElementById("questionTest").value, 10),
+      text: document.getElementById("questionText").value.trim(),
+      options,
+    }) });
+    showMsg("msg-question", "تمت إضافة السؤال.", true);
+    e.target.reset();
+    await refreshAll();
+  } catch (err) { showMsg("msg-question", err.message, false); }
+});
+
+function renderTestsList(tests) {
+  const el = document.getElementById("testsList");
+  if (tests.length === 0) { el.innerHTML = `<p class="empty-note">لا توجد اختبارات بعد.</p>`; return; }
+  el.innerHTML = tests.map(t => `
+    <div style="border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin-bottom:10px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <strong style="color:var(--teal-900);">${t.title}</strong>
+        <button class="btn danger small" data-del-test="${t.id}">🗑 حذف الاختبار</button>
+      </div>
+      <div style="font-size:.78rem; color:var(--ink-soft); margin-top:4px;">السلسلة: ${t.series_name} — نسبة النجاح: ${t.pass_percent}%</div>
+      <ul class="tree-item-list" style="margin-top:8px;">
+        ${t.questions.map(q => `
+          <li>
+            <span>${q.text}</span>
+            <button class="btn danger small" data-del-question="${q.id}">🗑</button>
+          </li>
+        `).join("") || `<li class="empty-note">لا توجد أسئلة بعد.</li>`}
+      </ul>
+    </div>
+  `).join("");
+
+  el.querySelectorAll("[data-del-test]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("حذف الاختبار بكل أسئلته؟")) return;
+      try { await apiFetch("/admin/tests/" + btn.dataset.delTest, { method: "DELETE" }); await refreshAll(); }
+      catch (err) { alert(err.message); }
+    });
+  });
+  el.querySelectorAll("[data-del-question]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("حذف السؤال؟")) return;
+      try { await apiFetch("/admin/tests/questions/" + btn.dataset.delQuestion, { method: "DELETE" }); await refreshAll(); }
+      catch (err) { alert(err.message); }
+    });
+  });
+}
+
+/* ======================= الطلاب ======================= */
+async function loadStudents() {
+  const wrap = document.getElementById("studentsTableWrap");
+  try {
+    const students = await apiFetch("/admin/students");
+    if (students.length === 0) { wrap.innerHTML = `<p class="empty-note">لا يوجد طلاب مسجّلين بعد.</p>`; return; }
+    wrap.innerHTML = `
+      <table>
+        <thead><tr><th>الاسم</th><th>البريد</th><th>الهاتف</th><th>المرحلة</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+        <tbody>
+          ${students.map(s => `
+            <tr>
+              <td>${s.full_name}</td>
+              <td>${s.email}</td>
+              <td>${s.phone || "—"}</td>
+              <td>${s.stage_name || "—"}</td>
+              <td><span class="badge ${s.is_blocked ? "blocked" : "active"}">${s.is_blocked ? "موقوف" : "فعّال"}</span></td>
+              <td style="display:flex; gap:6px; flex-wrap:wrap;">
+                <button class="btn small outline" data-report="${s.id}">📊 تقرير</button>
+                <button class="btn small ${s.is_blocked ? "" : "danger"}" data-block="${s.id}" data-blocked="${s.is_blocked}">
+                  ${s.is_blocked ? "تفعيل" : "منع"}
+                </button>
+                <button class="btn danger small" data-delstudent="${s.id}">🗑 حذف</button>
+              </td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    `;
+
+    wrap.querySelectorAll("[data-report]").forEach(btn => {
+      btn.addEventListener("click", () => openStudentReport(btn.dataset.report));
+    });
+    wrap.querySelectorAll("[data-block]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const nowBlocked = btn.dataset.blocked === "1" || btn.dataset.blocked === "true";
+        try {
+          await apiFetch(`/admin/students/${btn.dataset.block}/block`, {
+            method: "PATCH", body: JSON.stringify({ is_blocked: !nowBlocked }),
+          });
+          await loadStudents();
+        } catch (err) { alert(err.message); }
+      });
+    });
+    wrap.querySelectorAll("[data-delstudent]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        if (!confirm("حذف هذا الطالب نهائيًا؟")) return;
+        try { await apiFetch("/admin/students/" + btn.dataset.delstudent, { method: "DELETE" }); await loadStudents(); }
+        catch (err) { alert(err.message); }
+      });
+    });
+  } catch (err) {
+    wrap.innerHTML = `<p style="color:var(--terracotta);">${err.message}</p>`;
+  }
+}
+
+async function openStudentReport(studentId) {
+  const overlay = document.getElementById("reportOverlay");
+  const body = document.getElementById("reportModalBody");
+  body.innerHTML = `<p style="text-align:center;">جارٍ التحميل...</p>`;
+  overlay.classList.add("show");
+  try {
+    const report = await apiFetch(`/admin/students/${studentId}/report`);
+    body.innerHTML = `
+      <h2>تقرير الطالب</h2>
+      <h3 style="font-size:1rem; color:var(--teal-700);">✅ تم الانتهاء منه</h3>
+      <ul class="tree-item-list">${report.finished.map(f => `<li>${f}</li>`).join("") || `<li class="empty-note">لا يوجد بعد</li>`}</ul>
+      <h3 style="font-size:1rem; color:var(--terracotta); margin-top:14px;">⏳ بدأ فيه ولم ينتهِ</h3>
+      <ul class="tree-item-list">${report.started.map(s => `<li>${s}</li>`).join("") || `<li class="empty-note">لا يوجد</li>`}</ul>
+    `;
+  } catch (err) {
+    body.innerHTML = `<p style="color:var(--terracotta);">${err.message}</p>`;
+  }
+}
+
+/* ======================= التهيئة الأولية ======================= */
+refreshAll().catch(err => console.error(err));
+</script>
+</body>
+</html>

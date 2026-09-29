@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>رسوخ | أكاديمية العلم الشرعي</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F5F0E2;
+    --bg-raised:#FBF8EE;
+    --ink:#1B2C28;
+    --ink-soft:#4A5C56;
+    --teal-900:#0E332F;
+    --teal-700:#1F5951;
+    --teal-600:#2C6E64;
+    --gold:#B9924F;
+    --gold-light:#E4C77E;
+    --sage:#7C9683;
+    --terracotta:#A8503A;
+    --line:#DCD3B8;
+    --line-soft:#E9E2CB;
+    --shadow: 0 8px 24px rgba(14,51,47,.10);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(circle at 12% 8%, rgba(185,146,79,.10), transparent 40%),
+      radial-gradient(circle at 88% 92%, rgba(31,89,81,.10), transparent 40%),
+      var(--bg);
+    color:var(--ink);
+    font-family:'IBM Plex Sans Arabic', sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:40px 18px 60px;
+  }
+  h1,h2,.brand,.display{font-family:'Amiri', serif;}
+  button{font-family:inherit; cursor:pointer;}
+  :focus-visible{outline:2px solid var(--teal-700); outline-offset:2px;}
+
+  /* ===== Top-right admin button ===== */
+  .admin-corner{
+    position:fixed;
+    top:18px; left:18px;
+    z-index:10;
+  }
+  .admin-corner button{
+    background:var(--teal-900);
+    color:var(--gold-light);
+    border:1px solid #24544C;
+    padding:9px 16px;
+    border-radius:999px;
+    font-size:.82rem;
+    font-weight:600;
+    box-shadow:var(--shadow);
+  }
+  .admin-corner button:hover{background:#173F3A;}
+
+  /* ===== Hero ===== */
+  .hero{
+    text-align:center;
+    margin:20px 0 40px;
+    max-width:560px;
+  }
+  .seal-mark{
+    width:74px; height:74px; border-radius:50%;
+    border:2px solid var(--gold);
+    display:flex; align-items:center; justify-content:center;
+    margin:0 auto 18px;
+    font-family:'Amiri', serif; font-weight:700; font-size:1.3rem; color:var(--gold);
+    background:var(--bg-raised);
+  }
+  .hero h1{
+    font-size:2.4rem;
+    color:var(--teal-900);
+    margin:0 0 8px;
+  }
+  .hero p{
+    color:var(--ink-soft);
+    font-size:.98rem;
+    line-height:1.9;
+    margin:0;
+  }
+
+  /* ===== Auth cards ===== */
+  .cards-wrap{
+    display:flex;
+    gap:24px;
+    max-width:900px;
+    width:100%;
+    align-items:flex-start;
+    flex-wrap:wrap;
+    justify-content:center;
+  }
+  .card{
+    background:var(--bg-raised);
+    border:1px solid var(--line);
+    border-radius:16px;
+    box-shadow:var(--shadow);
+    padding:28px 26px;
+    flex:1;
+    min-width:300px;
+    max-width:420px;
+  }
+  .card h2{
+    font-size:1.3rem;
+    color:var(--teal-900);
+    margin:0 0 4px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .card h2::before{content:"◆"; color:var(--gold); font-size:.7rem;}
+  .card .subtitle{
+    font-size:.78rem;
+    color:var(--ink-soft);
+    margin:0 0 20px;
+  }
+  label{
+    display:block;
+    font-size:.78rem;
+    color:var(--ink-soft);
+    margin-bottom:6px;
+  }
+  input{
+    width:100%;
+    padding:11px 12px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    font-family:inherit;
+    font-size:.9rem;
+    margin-bottom:14px;
+    background:#fff;
+    color:var(--ink);
+  }
+  input:focus{border-color:var(--teal-700);}
+  .row-2{display:flex; gap:12px;}
+  .row-2 > div{flex:1;}
+
+  .submit-btn{
+    width:100%;
+    padding:13px;
+    border:none;
+    border-radius:8px;
+    background:var(--teal-700);
+    color:#fff;
+    font-weight:600;
+    font-size:.92rem;
+    transition:background .18s ease;
+  }
+  .submit-btn:hover{background:var(--teal-900);}
+  .submit-btn:disabled{opacity:.6; cursor:not-allowed;}
+
+  .error-box{
+    background:rgba(168,80,58,.1);
+    color:var(--terracotta);
+    border:1px solid rgba(168,80,58,.3);
+    padding:10px 12px;
+    border-radius:8px;
+    font-size:.82rem;
+    margin-bottom:14px;
+    display:none;
+  }
+  .success-box{
+    background:rgba(124,150,131,.15);
+    color:var(--teal-900);
+    border:1px solid rgba(124,150,131,.4);
+    padding:10px 12px;
+    border-radius:8px;
+    font-size:.82rem;
+    margin-bottom:14px;
+    display:none;
+  }
+
+  .demo-hint{
+    font-size:.7rem;
+    color:var(--ink-soft);
+    margin-top:14px;
+    line-height:1.8;
+    text-align:center;
+  }
+  .demo-hint code{
+    background:var(--line-soft);
+    padding:1px 6px;
+    border-radius:4px;
+  }
+
+  /* ===== Modal for admin login ===== */
+  .overlay{
+    position:fixed; inset:0; background:rgba(14,20,18,.55);
+    display:none; align-items:center; justify-content:center;
+    padding:20px; z-index:50;
+  }
+  .overlay.show{display:flex;}
+  .modal{
+    background:var(--bg-raised);
+    border-radius:16px;
+    max-width:380px; width:100%;
+    padding:26px;
+    position:relative;
+    box-shadow:0 30px 60px rgba(0,0,0,.3);
+  }
+  .modal-close{
+    position:absolute; top:16px; left:16px;
+    background:none; border:none; font-size:1.3rem; color:var(--ink-soft);
+  }
+
+  @media (max-width:640px){
+    .hero h1{font-size:1.9rem;}
+    .card{padding:22px 18px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="admin-corner">
+  <button id="btnAdminOpen">🔑 دخول المشرف</button>
+</div>
+
+<div class="hero">
+  <div class="seal-mark">رسوخ</div>
+  <h1>رسوخ</h1>
+  <p>أكاديمية علمية للعلم الشرعي — مراحل مُرتّبة، وسندٌ علمي واضح من التمهيدية حتى الثالثة، في الفقه والتفسير والحديث ومصطلحه.</p>
+</div>
+
+<div class="cards-wrap">
+  <!-- بطاقة تسجيل الدخول -->
+  <div class="card">
+    <h2>تسجيل الدخول</h2>
+    <p class="subtitle">لديك حساب طالب بالفعل؟ ادخل من هنا</p>
+    <div class="error-box" id="loginError"></div>
+    <form id="loginForm">
+      <label for="loginEmail">البريد الإلكتروني</label>
+      <input type="email" id="loginEmail" required autocomplete="email">
+      <label for="loginPassword">كلمة المرور</label>
+      <input type="password" id="loginPassword" required autocomplete="current-password">
+      <button type="submit" class="submit-btn" id="loginBtn">دخول</button>
+    </form>
+    <div class="demo-hint">
+      للتجربة: <code>ahmed@rasokh.test</code> / <code>student123</code>
+    </div>
+  </div>
+
+  <!-- بطاقة تسجيل طالب جديد -->
+  <div class="card">
+    <h2>طالب جديد</h2>
+    <p class="subtitle">أنشئ حسابك وابدأ رحلتك العلمية</p>
+    <div class="error-box" id="registerError"></div>
+    <div class="success-box" id="registerSuccess"></div>
+    <form id="registerForm">
+      <label for="regName">الاسم الكامل</label>
+      <input type="text" id="regName" required>
+      <label for="regEmail">البريد الإلكتروني</label>
+      <input type="email" id="regEmail" required>
+      <div class="row-2">
+        <div>
+          <label for="regPhone">رقم الهاتف</label>
+          <input type="tel" id="regPhone">
+        </div>
+        <div>
+          <label for="regAge">العمر</label>
+          <input type="number" id="regAge" min="5" max="100">
+        </div>
+      </div>
+      <label for="regAddress">العنوان</label>
+      <input type="text" id="regAddress">
+      <label for="regPassword">كلمة المرور</label>
+      <input type="password" id="regPassword" required autocomplete="new-password">
+      <button type="submit" class="submit-btn" id="registerBtn">تسجيل</button>
+    </form>
+  </div>
+</div>
+
+<!-- نافذة دخول المشرف -->
+<div class="overlay" id="adminOverlay">
+  <div class="modal">
+    <button class="modal-close" id="btnAdminClose">✕</button>
+    <h2 style="color:var(--teal-900); margin-top:0;">دخول المشرف</h2>
+    <div class="error-box" id="adminError"></div>
+    <form id="adminForm">
+      <label for="adminEmail">البريد الإلكتروني</label>
+      <input type="email" id="adminEmail" required>
+      <label for="adminPassword">كلمة المرور</label>
+      <input type="password" id="adminPassword" required>
+      <button type="submit" class="submit-btn" id="adminBtn">دخول</button>
+    </form>
+    <div class="demo-hint">
+      للتجربة: <code>admin@rasokh.test</code> / <code>admin123</code>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_BASE = "/api"; // نسبي: يعمل محليًا وبعد النشر بدون تعديل
+
+async function apiFetch(path, options = {}) {
+  const res = await fetch(API_BASE + path, {
+    ...options,
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+  });
+  let data = {};
+  try { data = await res.json(); } catch (e) {}
+  if (!res.ok) {
+    throw new Error(data.error || "تعذّر الاتصال بالخادم، تأكد أن الباك إند يعمل على http://localhost:4000");
+  }
+  return data;
+}
+
+function setLoading(btn, loadingText, normalText) {
+  btn.disabled = true;
+  btn.textContent = loadingText;
+  return () => { btn.disabled = false; btn.textContent = normalText; };
+}
+
+/* ======================= تسجيل الدخول (طالب) ======================= */
+document.getElementById("loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email = document.getElementById("loginEmail").value.trim();
+  const password = document.getElementById("loginPassword").value;
+  const errorBox = document.getElementById("loginError");
+  errorBox.style.display = "none";
+  const reset = setLoading(document.getElementById("loginBtn"), "جارٍ الدخول...", "دخول");
+
+  try {
+    const data = await apiFetch("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+    localStorage.setItem("rasokh_token", data.token);
+    localStorage.setItem("rasokh_role", "student");
+    window.location.href = "student.html";
+  } catch (err) {
+    errorBox.textContent = err.message;
+    errorBox.style.display = "block";
+    reset();
+  }
+});
+
+/* ======================= تسجيل طالب جديد ======================= */
+document.getElementById("registerForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errorBox = document.getElementById("registerError");
+  const successBox = document.getElementById("registerSuccess");
+  errorBox.style.display = "none";
+  successBox.style.display = "none";
+  const reset = setLoading(document.getElementById("registerBtn"), "جارٍ التسجيل...", "تسجيل");
+
+  const payload = {
+    full_name: document.getElementById("regName").value.trim(),
+    email: document.getElementById("regEmail").value.trim(),
+    phone: document.getElementById("regPhone").value.trim(),
+    age: document.getElementById("regAge").value ? parseInt(document.getElementById("regAge").value, 10) : null,
+    address: document.getElementById("regAddress").value.trim(),
+    password: document.getElementById("regPassword").value,
+  };
+
+  try {
+    const data = await apiFetch("/auth/register", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    localStorage.setItem("rasokh_token", data.token);
+    localStorage.setItem("rasokh_role", "student");
+    successBox.textContent = "تم إنشاء الحساب بنجاح، جارٍ تحويلك إلى صفحتك...";
+    successBox.style.display = "block";
+    setTimeout(() => { window.location.href = "student.html"; }, 900);
+  } catch (err) {
+    errorBox.textContent = err.message;
+    errorBox.style.display = "block";
+    reset();
+  }
+});
+
+/* ======================= دخول المشرف ======================= */
+document.getElementById("btnAdminOpen").addEventListener("click", () => {
+  document.getElementById("adminOverlay").classList.add("show");
+});
+document.getElementById("btnAdminClose").addEventListener("click", () => {
+  document.getElementById("adminOverlay").classList.remove("show");
+});
+document.getElementById("adminOverlay").addEventListener("click", (e) => {
+  if (e.target.id === "adminOverlay") document.getElementById("adminOverlay").classList.remove("show");
+});
+
+document.getElementById("adminForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email = document.getElementById("adminEmail").value.trim();
+  const password = document.getElementById("adminPassword").value;
+  const errorBox = document.getElementById("adminError");
+  errorBox.style.display = "none";
+  const reset = setLoading(document.getElementById("adminBtn"), "جارٍ الدخول...", "دخول");
+
+  try {
+    const data = await apiFetch("/auth/admin-login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+    localStorage.setItem("rasokh_token", data.token);
+    localStorage.setItem("rasokh_role", "admin");
+    window.location.href = "admin.html";
+  } catch (err) {
+    errorBox.textContent = err.message;
+    errorBox.style.display = "block";
+    reset();
+  }
+});
+
+/* ======================= إن كان مسجّلاً دخوله بالفعل، وجّهه مباشرة ======================= */
+(function redirectIfLoggedIn() {
+  const token = localStorage.getItem("rasokh_token");
+  const role = localStorage.getItem("rasokh_role");
+  if (token && role === "student") window.location.href = "student.html";
+  else if (token && role === "admin") window.location.href = "admin.html";
+})();
+</script>
+</body>
+</html>

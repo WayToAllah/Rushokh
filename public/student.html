@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>رسوخ | لوحة الطالب</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F5F0E2;
+    --bg-raised:#FBF8EE;
+    --ink:#1B2C28;
+    --ink-soft:#4A5C56;
+    --teal-900:#0E332F;
+    --teal-700:#1F5951;
+    --teal-600:#2C6E64;
+    --gold:#B9924F;
+    --gold-light:#E4C77E;
+    --sage:#7C9683;
+    --terracotta:#A8503A;
+    --line:#DCD3B8;
+    --line-soft:#E9E2CB;
+    --shadow: 0 8px 24px rgba(14,51,47,.10);
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'IBM Plex Sans Arabic', sans-serif;
+    font-weight:400;
+    min-height:100vh;
+    padding-bottom:80px;
+  }
+  h1,h2,h3,.brand,.display{font-family:'Amiri', serif;}
+  button{font-family:inherit;cursor:pointer;}
+  ::selection{background:var(--gold-light);}
+  :focus-visible{outline:2px solid var(--teal-700); outline-offset:2px;}
+
+  /* ===== Topbar ===== */
+  .topbar{
+    background:var(--teal-900);
+    color:var(--bg-raised);
+    padding:16px 20px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    flex-wrap:wrap;
+    position:sticky;
+    top:0;
+    z-index:30;
+    box-shadow:var(--shadow);
+  }
+  .brand{
+    font-size:1.6rem;
+    font-weight:700;
+    color:var(--gold-light);
+    letter-spacing:.5px;
+    display:flex;
+    align-items:baseline;
+    gap:8px;
+  }
+  .brand small{
+    font-family:'IBM Plex Sans Arabic', sans-serif;
+    font-size:.65rem;
+    color:#C9BFA0;
+    font-weight:400;
+  }
+  .student-info{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .student-name{font-weight:600; font-size:.95rem;}
+  .pill-btn{
+    background:transparent;
+    border:1px solid #3F615A;
+    color:var(--bg-raised);
+    padding:8px 14px;
+    border-radius:999px;
+    font-size:.85rem;
+    transition:all .18s ease;
+  }
+  .pill-btn:hover{background:#173F3A; border-color:var(--gold);}
+  .pill-btn.solid{
+    background:var(--gold);
+    border-color:var(--gold);
+    color:#26200F;
+    font-weight:600;
+  }
+  .pill-btn.solid:hover{background:var(--gold-light);}
+
+  /* ===== Sanad chain (stage progression) ===== */
+  .sanad-wrap{
+    max-width:980px;
+    margin:34px auto 10px;
+    padding:0 20px;
+  }
+  .sanad-title{
+    font-size:.78rem;
+    color:var(--ink-soft);
+    text-align:center;
+    margin-bottom:18px;
+    letter-spacing:.5px;
+  }
+  .sanad-chain{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:0;
+  }
+  .sanad-node{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:8px;
+    cursor:pointer;
+    background:none;
+    border:none;
+    padding:4px 10px;
+    position:relative;
+    flex:1;
+    max-width:180px;
+  }
+  .bead{
+    width:46px; height:46px;
+    border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Amiri', serif;
+    font-weight:700;
+    font-size:1.1rem;
+    border:2px solid var(--line);
+    background:var(--bg-raised);
+    color:var(--ink-soft);
+    transition:all .2s ease;
+  }
+  .sanad-node.completed .bead{
+    background:var(--teal-700);
+    border-color:var(--teal-700);
+    color:var(--gold-light);
+  }
+  .sanad-node.current .bead{
+    background:var(--gold);
+    border-color:var(--gold);
+    color:#25200e;
+    box-shadow:0 0 0 5px rgba(185,146,79,.22);
+  }
+  .sanad-node.locked .bead{color:#B7AD8E; background:var(--line-soft);}
+  .sanad-node .label{
+    font-size:.72rem;
+    text-align:center;
+    color:var(--ink-soft);
+    line-height:1.3;
+  }
+  .sanad-node.current .label{color:var(--teal-900); font-weight:600;}
+  .thread{
+    height:2px;
+    flex:1;
+    background:var(--line);
+    margin-top:-30px;
+    max-width:60px;
+  }
+  .thread.filled{background:var(--teal-700);}
+
+  /* ===== Curriculum ===== */
+  .curriculum{
+    max-width:980px;
+    margin:26px auto;
+    padding:0 20px;
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+  }
+  .subject-card{
+    background:var(--bg-raised);
+    border:1px solid var(--line);
+    border-radius:14px;
+    overflow:hidden;
+    box-shadow:var(--shadow);
+  }
+  .subject-head{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:16px 18px;
+    cursor:pointer;
+    background:linear-gradient(to left, rgba(185,146,79,.06), transparent);
+  }
+  .seal{
+    --pct:0;
+    width:44px;height:44px;border-radius:50%;
+    background:conic-gradient(var(--gold) calc(var(--pct)*1%), var(--line-soft) 0);
+    display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;
+  }
+  .seal::after{
+    content:attr(data-pct)"%";
+    width:34px;height:34px;border-radius:50%;
+    background:var(--bg-raised);
+    display:flex;align-items:center;justify-content:center;
+    font-size:.62rem; font-weight:600; color:var(--teal-900);
+  }
+  .subject-titles{flex:1;}
+  .subject-titles h2{margin:0; font-size:1.15rem; color:var(--teal-900);}
+  .subject-titles .sub{font-size:.78rem; color:var(--ink-soft); margin-top:2px;}
+  .chevron{
+    font-size:.9rem; color:var(--ink-soft);
+    transition:transform .2s ease;
+  }
+  .subject-card.open .chevron{transform:rotate(180deg);}
+  .subject-body{
+    display:none;
+    padding:4px 18px 18px;
+    border-top:1px dashed var(--line);
+  }
+  .subject-card.open .subject-body{display:block;}
+
+  .series-block{margin-top:16px;}
+  .series-title{
+    font-family:'Amiri', serif;
+    font-size:1.02rem;
+    color:var(--teal-700);
+    display:flex; align-items:center; gap:8px;
+    margin-bottom:8px;
+  }
+  .series-title::before{content:"◆"; color:var(--gold); font-size:.7rem;}
+
+  .item-row{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:10px 8px;
+    border-radius:8px;
+    border-bottom:1px solid var(--line-soft);
+  }
+  .item-row:last-child{border-bottom:none;}
+  .item-row:hover{background:rgba(124,150,131,.08);}
+  .item-icon{
+    width:34px; height:34px; border-radius:8px;
+    background:var(--line-soft);
+    display:flex;align-items:center;justify-content:center;
+    font-size:1rem; flex-shrink:0;
+  }
+  .item-title{flex:1; font-size:.9rem;}
+  .item-title .meta{display:block; font-size:.72rem; color:var(--ink-soft); margin-top:2px;}
+  .tiny-btn{
+    background:var(--teal-700);
+    color:#fff;
+    border:none;
+    padding:7px 12px;
+    border-radius:8px;
+    font-size:.75rem;
+    font-weight:500;
+    white-space:nowrap;
+  }
+  .tiny-btn:hover{background:var(--teal-900);}
+  .tiny-btn.done{background:var(--sage);}
+  .tiny-btn.outline{
+    background:transparent; border:1px solid var(--teal-700); color:var(--teal-700);
+  }
+  .page-input{
+    width:60px; padding:6px 8px; border:1px solid var(--line); border-radius:6px;
+    font-family:inherit; font-size:.8rem; text-align:center;
+  }
+  .book-progress-bar{
+    height:5px; background:var(--line-soft); border-radius:4px; margin-top:4px; overflow:hidden;
+  }
+  .book-progress-fill{height:100%; background:var(--gold);}
+
+  .test-cta{
+    margin-top:12px;
+    display:flex; align-items:center; justify-content:space-between;
+    background:rgba(14,51,47,.04);
+    border:1px dashed var(--teal-700);
+    padding:12px 14px; border-radius:10px;
+  }
+  .test-cta .txt{font-size:.85rem; color:var(--teal-900);}
+  .test-cta .txt small{display:block; color:var(--ink-soft); font-size:.72rem; margin-top:2px;}
+
+  /* ===== Floating certificate button ===== */
+  .fab-cert{
+    position:fixed;
+    left:20px; bottom:20px;
+    background:var(--gold);
+    color:#26200F;
+    border:none;
+    padding:14px 20px;
+    border-radius:999px;
+    font-weight:700;
+    font-size:.9rem;
+    box-shadow:0 10px 26px rgba(185,146,79,.4);
+    z-index:20;
+  }
+  .fab-cert:hover{background:var(--gold-light);}
+
+  /* ===== Modal ===== */
+  .overlay{
+    position:fixed; inset:0; background:rgba(14,20,18,.55);
+    display:none; align-items:flex-start; justify-content:center;
+    padding:40px 16px; overflow-y:auto; z-index:50;
+  }
+  .overlay.show{display:flex;}
+  .modal{
+    background:var(--bg-raised);
+    border-radius:16px;
+    max-width:640px; width:100%;
+    padding:26px;
+    box-shadow:0 30px 60px rgba(0,0,0,.3);
+    position:relative;
+    animation:pop .18s ease;
+  }
+  @keyframes pop{from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:translateY(0)}}
+  .modal-close{
+    position:absolute; top:16px; left:16px;
+    background:none; border:none; font-size:1.3rem; color:var(--ink-soft);
+  }
+  .modal h2{color:var(--teal-900); margin-top:0;}
+
+  /* Test modal */
+  .q-block{margin-bottom:18px; padding-bottom:16px; border-bottom:1px solid var(--line-soft);}
+  .q-title{font-weight:600; margin-bottom:10px;}
+  .opt-label{
+    display:flex; align-items:center; gap:8px;
+    padding:8px 10px; border-radius:8px; border:1px solid var(--line);
+    margin-bottom:6px; font-size:.88rem; cursor:pointer;
+  }
+  .opt-label:hover{border-color:var(--teal-700);}
+  .opt-label input{accent-color:var(--teal-700);}
+  .result-banner{
+    text-align:center; padding:16px; border-radius:10px; margin-bottom:16px;
+    font-weight:700; font-size:1.1rem;
+  }
+  .result-banner.pass{background:rgba(124,150,131,.18); color:var(--teal-900);}
+  .result-banner.fail{background:rgba(168,80,58,.12); color:var(--terracotta);}
+
+  /* Report modal */
+  .report-stats{display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap;}
+  .stat-card{
+    flex:1; min-width:110px;
+    background:var(--bg); border:1px solid var(--line); border-radius:10px;
+    padding:14px; text-align:center;
+  }
+  .stat-card .num{font-family:'Amiri', serif; font-size:1.7rem; color:var(--teal-900); font-weight:700;}
+  .stat-card .lbl{font-size:.72rem; color:var(--ink-soft); margin-top:4px;}
+  .report-list{list-style:none; padding:0; margin:0;}
+  .report-list li{
+    display:flex; gap:10px; align-items:flex-start;
+    padding:9px 0; border-bottom:1px solid var(--line-soft); font-size:.85rem;
+  }
+  .report-list li:last-child{border-bottom:none;}
+
+  /* Certificate modal */
+  .certificate{
+    border:3px double var(--gold);
+    padding:36px 26px;
+    text-align:center;
+    background:
+      radial-gradient(circle at top right, rgba(185,146,79,.08), transparent 55%),
+      radial-gradient(circle at bottom left, rgba(31,89,81,.08), transparent 55%),
+      var(--bg-raised);
+    position:relative;
+  }
+  .certificate .kicker{font-size:.75rem; letter-spacing:2px; color:var(--gold); font-weight:600;}
+  .certificate h1{font-size:2rem; color:var(--teal-900); margin:8px 0;}
+  .certificate .name{font-family:'Amiri', serif; font-size:1.6rem; color:var(--teal-700); margin:14px 0; border-bottom:1px solid var(--gold-light); display:inline-block; padding-bottom:6px;}
+  .certificate .body-txt{font-size:.92rem; color:var(--ink-soft); line-height:1.9; max-width:440px; margin:0 auto;}
+  .certificate .stats-row{display:flex; justify-content:center; gap:26px; margin:22px 0;}
+  .certificate .stats-row div{text-align:center;}
+  .certificate .stats-row .n{font-family:'Amiri', serif; font-size:1.4rem; color:var(--gold); font-weight:700;}
+  .certificate .stats-row .l{font-size:.68rem; color:var(--ink-soft);}
+  .certificate .seal-stamp{
+    width:70px; height:70px; border-radius:50%;
+    border:2px solid var(--gold);
+    display:flex; align-items:center; justify-content:center;
+    margin:0 auto 12px;
+    font-family:'Amiri', serif; color:var(--gold); font-weight:700; font-size:.8rem;
+    transform:rotate(-8deg);
+  }
+  .print-btn{margin-top:20px;}
+
+  @media print{
+    body *{visibility:hidden;}
+    #certModal, #certModal *{visibility:visible;}
+    #certModal{position:fixed; inset:0; padding:40px;}
+    .modal-close, .print-btn{display:none;}
+  }
+
+  @media (max-width:640px){
+    .sanad-chain{flex-wrap:wrap; gap:10px;}
+    .thread{display:none;}
+    .subject-titles h2{font-size:1rem;}
+    .item-row{flex-wrap:wrap;}
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">رسوخ <small>أكاديمية العلم الشرعي</small></div>
+  <div class="student-info">
+    <span class="student-name" id="studentNameLbl">أحمد بن سالم العتيبي</span>
+    <button class="pill-btn solid" id="btnReport">📊 تقريري</button>
+    <button class="pill-btn" id="btnLogout">تسجيل خروج</button>
+  </div>
+</header>
+
+<div class="sanad-wrap">
+  <div class="sanad-title">سلسلة المراحل الدراسية — سندك العلمي</div>
+  <div class="sanad-chain" id="sanadChain"></div>
+</div>
+
+<main class="curriculum" id="curriculumRoot"></main>
+
+<button class="fab-cert" id="btnCertificate">🏆 شهادة المرحلة</button>
+
+<!-- Test Modal -->
+<div class="overlay" id="testOverlay">
+  <div class="modal" id="testModal">
+    <button class="modal-close" data-close="testOverlay">✕</button>
+    <div id="testModalBody"></div>
+  </div>
+</div>
+
+<!-- Report Modal -->
+<div class="overlay" id="reportOverlay">
+  <div class="modal" id="reportModal">
+    <button class="modal-close" data-close="reportOverlay">✕</button>
+    <div id="reportModalBody"></div>
+  </div>
+</div>
+
+<!-- Certificate Modal -->
+<div class="overlay" id="certOverlay">
+  <div class="modal" id="certModal">
+    <button class="modal-close" data-close="certOverlay">✕</button>
+    <div id="certModalBody"></div>
+  </div>
+</div>
+
+
+<!-- Login Gate (يظهر أولاً حتى يسجل الطالب دخوله عبر الباك إند الحقيقي) -->
+<div class="overlay show" id="loginOverlay">
+  <div class="modal" style="max-width:380px;">
+    <h2>تسجيل الدخول</h2>
+    <div id="loginError" style="color:var(--terracotta); font-size:.85rem; margin-bottom:10px; display:none;"></div>
+    <form id="loginForm">
+      <label style="font-size:.8rem; color:var(--ink-soft);">البريد الإلكتروني</label><br>
+      <input type="email" id="loginEmail" required
+        style="width:100%; padding:10px; margin:6px 0 14px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:.9rem;">
+      <label style="font-size:.8rem; color:var(--ink-soft);">كلمة المرور</label><br>
+      <input type="password" id="loginPassword" required
+        style="width:100%; padding:10px; margin:6px 0 18px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:.9rem;">
+      <button type="submit" class="tiny-btn" id="loginSubmitBtn" style="width:100%; padding:12px; font-size:.9rem;">دخول</button>
+    </form>
+    <p style="font-size:.72rem; color:var(--ink-soft); margin-top:14px; line-height:1.7;">
+      للتجربة: <strong>ahmed@rasokh.test</strong> / <strong>student123</strong><br>
+      تأكد أن الباك إند شغّال على <code>http://localhost:4000</code>
+    </p>
+  </div>
+</div>
+
+<!-- شاشة تحميل بسيطة أثناء جلب المنهج -->
+<div class="overlay" id="loadingOverlay">
+  <div class="modal" style="max-width:280px; text-align:center;">
+    <p style="margin:0; font-size:.9rem; color:var(--ink-soft);">جارِ تحميل المنهج...</p>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   الاتصال بالباك إند الحقيقي (rasokh-backend) بدل بيانات mock
+   ============================================================ */
+const API_BASE = "/api"; // نسبي: يعمل محليًا وبعد النشر بدون تعديل
+
+// التوكن يُحفظ في localStorage ليُستقبل من صفحة index.html عند تسجيل الدخول هناك،
+// ولتبقى الجلسة عند تحديث الصفحة. (ملاحظة: داخل معاينة Claude.ai نفسها قد لا يعمل
+// التخزين المحلي، لكنه يعمل بشكل طبيعي عند فتح الملفات فعليًا من متصفح حقيقي).
+let authToken = localStorage.getItem("rasokh_token") || null;
+let curriculumData = null; // { student_name, stages: [...] } كما يعيدها /api/curriculum
+
+async function apiFetch(path, options = {}) {
+  const res = await fetch(API_BASE + path, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(authToken ? { Authorization: "Bearer " + authToken } : {}),
+      ...(options.headers || {}),
+    },
+  });
+  let data = {};
+  try { data = await res.json(); } catch (e) { /* استجابة بلا محتوى */ }
+  if (!res.ok) {
+    throw new Error(data.error || "تعذّر الاتصال بالخادم، تأكد أن الباك إند يعمل.");
+  }
+  return data;
+}
+
+/* ======================= تسجيل الدخول ======================= */
+document.getElementById("loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email = document.getElementById("loginEmail").value.trim();
+  const password = document.getElementById("loginPassword").value;
+  const errorBox = document.getElementById("loginError");
+  const submitBtn = document.getElementById("loginSubmitBtn");
+  errorBox.style.display = "none";
+  submitBtn.textContent = "جارٍ الدخول...";
+  submitBtn.disabled = true;
+
+  try {
+    const data = await apiFetch("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+    authToken = data.token;
+    localStorage.setItem("rasokh_token", data.token);
+    localStorage.setItem("rasokh_role", "student");
+    document.getElementById("studentNameLbl").textContent = data.student.full_name;
+    document.getElementById("loginOverlay").classList.remove("show");
+    await loadCurriculum();
+  } catch (err) {
+    errorBox.textContent = err.message;
+    errorBox.style.display = "block";
+  } finally {
+    submitBtn.textContent = "دخول";
+    submitBtn.disabled = false;
+  }
+});
+
+document.getElementById("btnLogout").addEventListener("click", () => {
+  if (!confirm("هل تريد تسجيل الخروج؟")) return;
+  authToken = null;
+  curriculumData = null;
+  localStorage.removeItem("rasokh_token");
+  localStorage.removeItem("rasokh_role");
+  window.location.href = "index.html";
+});
+
+// إن كان الطالب قد سجّل دخوله بالفعل من index.html (أو من جلسة سابقة)، نتخطى شاشة
+// الدخول ونحاول جلب المنهج مباشرة. لو التوكن منتهي أو غير صالح، تُعرض شاشة الدخول.
+async function tryResumeSession() {
+  if (!authToken) return;
+  document.getElementById("loginOverlay").classList.remove("show");
+  try {
+    await loadCurriculum();
+    const name = curriculumData ? curriculumData.student_name : null;
+    if (name) document.getElementById("studentNameLbl").textContent = name;
+  } catch (err) {
+    authToken = null;
+    localStorage.removeItem("rasokh_token");
+    localStorage.removeItem("rasokh_role");
+    document.getElementById("loginOverlay").classList.add("show");
+  }
+}
+tryResumeSession();
+
+/* ======================= جلب المنهج من الباك إند ======================= */
+async function loadCurriculum() {
+  document.getElementById("loadingOverlay").classList.add("show");
+  try {
+    curriculumData = await apiFetch("/curriculum");
+    renderSanad();
+    renderCurriculum();
+    const firstSubjectCard = document.querySelector(".subject-card");
+    if (firstSubjectCard) firstSubjectCard.classList.add("open");
+  } catch (err) {
+    document.getElementById("curriculumRoot").innerHTML =
+      `<p style="color:var(--terracotta); text-align:center;">${err.message}</p>`;
+  } finally {
+    document.getElementById("loadingOverlay").classList.remove("show");
+  }
+}
+
+function currentStage() {
+  return curriculumData ? curriculumData.stages.find(s => s.status === "current") : null;
+}
+
+/* ======================= أدوات مساعدة لحساب النسب ======================= */
+function subjectPercent(subject) {
+  let total = 0, done = 0;
+  subject.series.forEach(s => {
+    s.episodes.forEach(e => { total++; if (e.listened) done++; });
+    s.books.forEach(b => { total++; if (b.current_page >= b.total_pages && b.total_pages > 0) done++; });
+  });
+  if (total === 0) return 0;
+  return Math.round((done / total) * 100);
+}
+
+/* ======================= رسم سلسلة المراحل (السند) ======================= */
+function renderSanad() {
+  const el = document.getElementById("sanadChain");
+  el.innerHTML = "";
+  curriculumData.stages.forEach((stage, idx) => {
+    const node = document.createElement("button");
+    node.className = "sanad-node " + stage.status;
+    node.innerHTML = `<div class="bead">${idx + 1}</div><div class="label">${stage.name}</div>`;
+    node.title = stage.status === "locked" ? "لم تفتح بعد" : "عرض محتوى المرحلة";
+    node.addEventListener("click", () => {
+      if (stage.status === "locked") {
+        alert("تفتح هذه المرحلة بعد إتمام المرحلة التي قبلها.");
+        return;
+      }
+      document.getElementById("curriculumRoot").scrollIntoView({ behavior: "smooth" });
+    });
+    el.appendChild(node);
+    if (idx < curriculumData.stages.length - 1) {
+      const thread = document.createElement("div");
+      thread.className = "thread" + (stage.status === "completed" ? " filled" : "");
+      el.appendChild(thread);
+    }
+  });
+}
+
+/* ======================= رسم المنهج (المرحلة الحالية) ======================= */
+function renderCurriculum() {
+  const root = document.getElementById("curriculumRoot");
+  root.innerHTML = "";
+  const stage = currentStage();
+  if (!stage) { root.innerHTML = "<p>لا توجد مرحلة نشطة حالياً.</p>"; return; }
+
+  if (stage.subjects.length === 0) {
+    root.innerHTML = `<p style="text-align:center; color:var(--ink-soft);">لم يُضَف محتوى لهذه المرحلة بعد.</p>`;
+    return;
+  }
+
+  stage.subjects.forEach(subject => {
+    const card = document.createElement("div");
+    card.className = "subject-card";
+    const pct = subjectPercent(subject);
+
+    const head = document.createElement("div");
+    head.className = "subject-head";
+    head.innerHTML = `
+      <div class="seal" data-pct="${pct}" style="--pct:${pct}"></div>
+      <div class="subject-titles">
+        <h2>${subject.icon || ""} ${subject.name}</h2>
+        <div class="sub">${subject.series.length} سلسلة</div>
+      </div>
+      <div class="chevron">▾</div>
+    `;
+    head.addEventListener("click", () => card.classList.toggle("open"));
+
+    const body = document.createElement("div");
+    body.className = "subject-body";
+
+    if (subject.series.length === 0) {
+      body.innerHTML = `<p style="color:var(--ink-soft); font-size:.85rem;">لم يُضَف محتوى لهذا القسم بعد.</p>`;
+    }
+
+    subject.series.forEach(series => {
+      const block = document.createElement("div");
+      block.className = "series-block";
+      block.innerHTML = `<div class="series-title">${series.name}</div>`;
+
+      series.episodes.forEach(ep => {
+        const row = document.createElement("div");
+        row.className = "item-row";
+        row.innerHTML = `
+          <div class="item-icon">▶️</div>
+          <div class="item-title">${ep.title}<span class="meta">${ep.duration || ""}</span></div>
+          <button class="tiny-btn ${ep.listened ? "done" : ""}" data-ep="${ep.id}">
+            ${ep.listened ? "✓ تم السماع" : "تم السماع"}
+          </button>
+        `;
+        row.querySelector("button").addEventListener("click", () => toggleEpisode(ep));
+        block.appendChild(row);
+      });
+
+      series.books.forEach(book => {
+        const row = document.createElement("div");
+        row.className = "item-row";
+        const bookPct = book.total_pages > 0 ? Math.min(100, Math.round((book.current_page / book.total_pages) * 100)) : 0;
+        row.innerHTML = `
+          <div class="item-icon">📖</div>
+          <div class="item-title">${book.title}
+            <span class="meta">صفحة ${book.current_page} من ${book.total_pages}</span>
+            <div class="book-progress-bar"><div class="book-progress-fill" style="width:${bookPct}%"></div></div>
+          </div>
+          <input type="number" class="page-input" min="0" max="${book.total_pages}" value="${book.current_page}" data-book="${book.id}">
+          <button class="tiny-btn outline" data-savebook="${book.id}">تحديث</button>
+        `;
+        row.querySelector("[data-savebook]").addEventListener("click", () => {
+          const input = row.querySelector("[data-book]");
+          updateBookPage(book, input.value);
+        });
+        block.appendChild(row);
+      });
+
+      if (series.test) {
+        const done = series.test.last_score !== null && series.test.last_score !== undefined;
+        const cta = document.createElement("div");
+        cta.className = "test-cta";
+        cta.innerHTML = `
+          <div class="txt">${series.test.title}
+            <small>${done ? "آخر نتيجة: " + series.test.last_score + "%" : "لم يُؤدَ الاختبار بعد"}</small>
+          </div>
+          <button class="tiny-btn" data-test="${series.test.id}">${done ? "إعادة الاختبار" : "بدء الاختبار"}</button>
+        `;
+        cta.querySelector("button").addEventListener("click", () => openTest(series.test.id));
+        block.appendChild(cta);
+      }
+
+      body.appendChild(block);
+    });
+
+    card.appendChild(head);
+    card.appendChild(body);
+    root.appendChild(card);
+  });
+}
+
+/* ======================= تحديث تقدم الحلقة (يستدعي API فعليًا) ======================= */
+async function toggleEpisode(ep) {
+  const newState = !ep.listened;
+  ep.listened = newState; // تحديث متفائل فوري للواجهة
+  renderCurriculum();
+  try {
+    await apiFetch("/progress/episode", {
+      method: "POST",
+      body: JSON.stringify({ episode_id: ep.id, listened: newState }),
+    });
+  } catch (err) {
+    ep.listened = !newState; // تراجع عند الفشل
+    renderCurriculum();
+    alert(err.message);
+  }
+}
+
+/* ======================= تحديث رقم صفحة الكتاب (يستدعي API فعليًا) ======================= */
+async function updateBookPage(book, rawValue) {
+  const previous = book.current_page;
+  let val = parseInt(rawValue, 10);
+  if (isNaN(val) || val < 0) val = 0;
+  if (val > book.total_pages) val = book.total_pages;
+  book.current_page = val;
+  renderCurriculum();
+  try {
+    const res = await apiFetch("/progress/book", {
+      method: "POST",
+      body: JSON.stringify({ book_id: book.id, current_page: val }),
+    });
+    book.current_page = res.current_page;
+    renderCurriculum();
+  } catch (err) {
+    book.current_page = previous;
+    renderCurriculum();
+    alert(err.message);
+  }
+}
+
+/* ======================= الاختبار (يجلب الأسئلة من الباك إند دون كشف الإجابة الصحيحة) ======================= */
+async function openTest(testId) {
+  const overlay = document.getElementById("testOverlay");
+  const body = document.getElementById("testModalBody");
+  body.innerHTML = `<p style="text-align:center; color:var(--ink-soft);">جارٍ تحميل الاختبار...</p>`;
+  overlay.classList.add("show");
+
+  let test;
+  try {
+    test = await apiFetch(`/tests/${testId}`);
+  } catch (err) {
+    body.innerHTML = `<p style="color:var(--terracotta); text-align:center;">${err.message}</p>`;
+    return;
+  }
+
+  body.innerHTML = `<h2>${test.title}</h2><form id="testForm"></form>`;
+  const form = body.querySelector("#testForm");
+
+  test.questions.forEach((q, qi) => {
+    const block = document.createElement("div");
+    block.className = "q-block";
+    let optsHtml = q.options.map(opt => `
+      <label class="opt-label">
+        <input type="radio" name="q${q.id}" value="${opt.id}" required>
+        ${opt.text}
+      </label>
+    `).join("");
+    block.innerHTML = `<div class="q-title">${qi + 1}. ${q.text}</div>${optsHtml}`;
+    form.appendChild(block);
+  });
+
+  const submitBtn = document.createElement("button");
+  submitBtn.type = "submit";
+  submitBtn.className = "tiny-btn";
+  submitBtn.style.padding = "10px 22px";
+  submitBtn.textContent = "تسليم الإجابات";
+  form.appendChild(submitBtn);
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const answers = test.questions.map(q => {
+      const chosen = form.querySelector(`input[name="q${q.id}"]:checked`);
+      return { question_id: q.id, option_id: chosen ? parseInt(chosen.value, 10) : null };
+    });
+    submitBtn.disabled = true;
+    submitBtn.textContent = "جارٍ التصحيح...";
+    try {
+      const result = await apiFetch(`/tests/${testId}/attempt`, {
+        method: "POST",
+        body: JSON.stringify({ answers }),
+      });
+      showTestResult(test, result);
+    } catch (err) {
+      alert(err.message);
+      submitBtn.disabled = false;
+      submitBtn.textContent = "تسليم الإجابات";
+    }
+  });
+}
+
+function showTestResult(test, result) {
+  const body = document.getElementById("testModalBody");
+  body.innerHTML = `
+    <h2>${test.title}</h2>
+    <div class="result-banner ${result.passed ? "pass" : "fail"}">
+      ${result.passed ? "أحسنت! لقد اجتزت الاختبار 🎉" : "لم تحقق النسبة المطلوبة، حاول مرة أخرى"}
+    </div>
+    <p style="text-align:center; font-size:.95rem;">
+      عدد الإجابات الصحيحة: <strong>${result.correct_count}</strong> من ${result.total_questions}<br>
+      النسبة: <strong>${result.score}%</strong>
+    </p>
+    <div style="text-align:center; margin-top:16px;">
+      <button class="tiny-btn" data-close="testOverlay">إغلاق</button>
+    </div>
+  `;
+  body.querySelector("[data-close]").addEventListener("click", () => closeOverlay("testOverlay"));
+  loadCurriculum(); // لتحديث آخر نتيجة معروضة أمام السلسلة
+}
+
+/* ======================= تقرير الطالب (من الباك إند) ======================= */
+async function openReport() {
+  const overlay = document.getElementById("reportOverlay");
+  const body = document.getElementById("reportModalBody");
+  body.innerHTML = `<p style="text-align:center; color:var(--ink-soft);">جارٍ تحميل التقرير...</p>`;
+  overlay.classList.add("show");
+
+  let report;
+  try {
+    report = await apiFetch("/progress/me/report");
+  } catch (err) {
+    body.innerHTML = `<p style="color:var(--terracotta); text-align:center;">${err.message}</p>`;
+    return;
+  }
+
+  const stage = currentStage();
+  body.innerHTML = `
+    <h2>📊 تقريري - ${stage ? stage.name : ""}</h2>
+    <div class="report-stats">
+      <div class="stat-card"><div class="num">${report.completed.length}</div><div class="lbl">عنصر مكتمل</div></div>
+      <div class="stat-card"><div class="num">${report.in_progress.length}</div><div class="lbl">عنصر قيد الدراسة</div></div>
+    </div>
+    <h3 style="font-size:1rem; color:var(--teal-700);">✅ تم الانتهاء منه</h3>
+    <ul class="report-list">
+      ${report.completed.map(i => `<li>${i.type === "episode" ? "▶️" : "📖"} ${i.title} <span style="color:var(--ink-soft)">— ${i.context}</span></li>`).join("") || "<li>لا يوجد بعد</li>"}
+    </ul>
+    <h3 style="font-size:1rem; color:var(--terracotta); margin-top:16px;">⏳ قيد الدراسة</h3>
+    <ul class="report-list">
+      ${report.in_progress.map(i => `<li>${i.type === "episode" ? "▶️" : "📖"} ${i.title} <span style="color:var(--ink-soft)">— ${i.context}</span></li>`).join("") || "<li>لا يوجد</li>"}
+    </ul>
+  `;
+}
+
+/* ======================= شهادة المرحلة (من الباك إند) ======================= */
+async function openCertificate() {
+  const overlay = document.getElementById("certOverlay");
+  const body = document.getElementById("certModalBody");
+  const stage = currentStage();
+  if (!stage) return;
+
+  body.innerHTML = `<p style="text-align:center; color:var(--ink-soft);">جارٍ التحقق من نسبة الإنجاز...</p>`;
+  overlay.classList.add("show");
+
+  let cert;
+  try {
+    cert = await apiFetch(`/progress/certificate/${stage.id}`);
+  } catch (err) {
+    body.innerHTML = `<p style="color:var(--terracotta); text-align:center;">${err.message}</p>`;
+    return;
+  }
+
+  if (!cert.eligible) {
+    body.innerHTML = `
+      <h2>🏆 شهادة إتمام المرحلة</h2>
+      <p style="font-size:.9rem; color:var(--ink-soft);">
+        لم تكتمل متطلبات المرحلة بعد. نسبة إنجازك الحالية في مرحلة "${cert.stage_name}" هي
+        <strong>${cert.percent}%</strong>. أكمل باقي الحلقات والكتب لإصدار الشهادة.
+      </p>
+    `;
+    return;
+  }
+
+  const today = new Date().toLocaleDateString("ar-SA", { year: "numeric", month: "long", day: "numeric" });
+  body.innerHTML = `
+    <div class="certificate" id="certPrintArea">
+      <div class="seal-stamp">رسوخ</div>
+      <div class="kicker">شهادة إتمام</div>
+      <h1>مرحلة ${cert.stage_name}</h1>
+      <p class="body-txt">تشهد أكاديمية <strong>رسوخ</strong> للعلم الشرعي بأن الطالب</p>
+      <div class="name">${cert.student_name}</div>
+      <p class="body-txt">قد أتمّ بحمد الله جميع متطلبات هذه المرحلة من حلقات وكتب واختبارات بتاريخ ${today}.</p>
+      <div class="stats-row">
+        <div><div class="n">${cert.total_episodes}</div><div class="l">حلقة</div></div>
+        <div><div class="n">${cert.total_books}</div><div class="l">كتاب</div></div>
+        <div><div class="n">${cert.percent}%</div><div class="l">نسبة الإنجاز</div></div>
+      </div>
+      <button class="tiny-btn print-btn" onclick="window.print()">🖨️ طباعة الشهادة</button>
+    </div>
+  `;
+}
+
+/* ======================= أدوات عامة ======================= */
+function closeOverlay(id) { document.getElementById(id).classList.remove("show"); }
+
+document.querySelectorAll("[data-close]").forEach(btn => {
+  btn.addEventListener("click", () => closeOverlay(btn.dataset.close));
+});
+document.querySelectorAll(".overlay").forEach(ov => {
+  ov.addEventListener("click", (e) => {
+    if (e.target === ov && ov.id !== "loginOverlay" && ov.id !== "loadingOverlay") {
+      ov.classList.remove("show");
+    }
+  });
+});
+
+document.getElementById("btnReport").addEventListener("click", openReport);
+document.getElementById("btnCertificate").addEventListener("click", openCertificate);
+</script>
+</body>
+</html>
