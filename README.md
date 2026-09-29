@@ -91,6 +91,8 @@ rasokh-backend/
 | GET     | `/tests/:id`                         | أسئلة الاختبار (بدون كشف الإجابة الصحيحة)     |
 | POST    | `/tests/:id/attempt`                 | `{ answers:[{question_id, option_id}] }`      |
 
+| POST    | `/account/password`                  | الطالب يغيّر كلمة المرور: `{ current_password, new_password }` |
+
 ### المشرف (يتطلب توكن مشرف)
 | الطريقة | المسار                                | الوصف                                  |
 |---------|----------------------------------------|--------------------------------------------|
@@ -116,7 +118,11 @@ rasokh-backend/
 | POST    | `/admin/account/password`              | `{ current_password, new_password }`        |
 | GET/POST| `/admin/account/admins`                | عرض/إضافة مشرفين `{ full_name, email, password }` |
 | DELETE  | `/admin/account/admins/:id`            | حذف مشرف (غير نفسك وغير آخر مشرف)          |
-| PATCH   | `/admin/content/series/:id`            | رابط السلسلة كاملة: `{ url }` (فاضي = مسح)  |
+| PATCH   | `/admin/content/{stages,subjects,series,episodes,books}/:id` | تعديل جزئي (الحقول المبعوتة بس). السلسلة: `{ name, url }` |
+| POST    | `/admin/content/reorder`               | `{ kind: stages|stage-subject|series|episodes|books, ids:[...] }` |
+| PATCH   | `/admin/tests/:id`                     | `{ title, pass_percent }`                   |
+| PATCH   | `/admin/tests/questions/:id`           | `{ text, options:[{text,is_correct}] }` (إجابة صحيحة واحدة) |
+| PATCH   | `/admin/students/:id/password`         | كلمة مرور جديدة لطالب: `{ new_password }`   |
 | GET     | `/admin/reports/students.xlsx`         | تقرير Excel: ملخص الطلاب + التقدم في كل مادة |
 
 ## ملاحظات تصميم مهمة

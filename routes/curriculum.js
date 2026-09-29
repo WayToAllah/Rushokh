@@ -11,12 +11,12 @@ function buildSubjectsForStage(stageId, studentId) {
   const stageSubjects = db.prepare(
     `SELECT ss.id AS stage_subject_id, s.id AS subject_id, s.name, s.icon
      FROM stage_subject ss JOIN subjects s ON s.id = ss.subject_id
-     WHERE ss.stage_id = ? ORDER BY ss.order_index ASC`
+     WHERE ss.stage_id = ? ORDER BY ss.order_index ASC, ss.id ASC`
   ).all(stageId);
 
   return stageSubjects.map(subj => {
     const seriesRows = db.prepare(
-      `SELECT id, name, url FROM series WHERE stage_subject_id = ? ORDER BY order_index ASC`
+      `SELECT id, name, url FROM series WHERE stage_subject_id = ? ORDER BY order_index ASC, id ASC`
     ).all(subj.stage_subject_id);
 
     const series = seriesRows.map(s => {
@@ -26,7 +26,7 @@ function buildSubjectsForStage(stageId, studentId) {
          FROM episodes e
          LEFT JOIN student_episode_progress p
            ON p.episode_id = e.id AND p.student_id = ?
-         WHERE e.series_id = ? ORDER BY e.order_index ASC`
+         WHERE e.series_id = ? ORDER BY e.order_index ASC, e.id ASC`
       ).all(studentId, s.id);
 
       const books = db.prepare(
@@ -35,7 +35,7 @@ function buildSubjectsForStage(stageId, studentId) {
          FROM books b
          LEFT JOIN student_book_progress p
            ON p.book_id = b.id AND p.student_id = ?
-         WHERE b.series_id = ? `
+         WHERE b.series_id = ? ORDER BY b.order_index ASC, b.id ASC`
       ).all(studentId, s.id);
 
       // كل اختبارات السلسلة اللي فيها أسئلة، مع آخر نتيجة وهل نجح فيها قبل كده

@@ -114,6 +114,58 @@ async function call(method, path, { token, body, headers } = {}) {
   const pw = await call("POST", "/admin/account/password", { token: A, body: { current_password: "wrong", new_password: "newpassword1" } });
   check("تغيير كلمة المرور بباسورد حالي غلط مرفوض", pw.status === 400, pw.status);
 
+  // ---------- التعديل والترتيب ----------
+  const H = { token: A };
+  // طالب جديد (أحمد اتقفل مؤقتًا من اختبار المحاولات الغلط فوق)، ونحطه في المرحلة الأولى
+  const reg2 = await call("POST", "/auth/register", { headers: ip(), body: { full_name: "طالب التعديل", email: `edit${uniq}@t.com`, password: "password123" } });
+  const T2 = reg2.data.token;
+  let t2 = (await call("GET", "/admin/content/tree", H)).data;
+  await call("PATCH", `/admin/students/${reg2.data.student.id}/stage`, { ...H, body: { stage_id: t2.find(s => s.name === "الأولى").id } });
+  const s1 = t2.find(s => s.name === "الأولى").subjects[0].series[0];
+  const ep0 = s1.episodes[0];
+  await call("POST", "/progress/episode", { token: T2, body: { episode_id: ep0.id, listened: true } });
+
+  const editEp = await call("PATCH", `/admin/content/episodes/${ep0.id}`, { ...H, body: { title: "عنوان معدّل", url: "https://youtu.be/dQw4w9WgXcQ" } });
+  const curAfter = (await call("GET", "/curriculum", { token: T2 })).data;
+  const epAfter = curAfter.stages.find(s => s.status === "current").subjects[0].series[0].episodes.find(e => e.id === ep0.id);
+  check("تعديل الحلقة اتحفظ، والطالب ما خسرش إنه سمعها", editEp.status === 200 && epAfter.title === "عنوان معدّل" && epAfter.listened === 1, epAfter);
+
+  const emptyTitle = await call("PATCH", `/admin/content/episodes/${ep0.id}`, { ...H, body: { title: "  " } });
+  check("عنوان فاضي مرفوض", emptyTitle.status === 400, emptyTitle.status);
+
+  const reversed = [...s1.episodes.map(e => e.id)].reverse();
+  const ro = await call("POST", "/admin/content/reorder", { ...H, body: { kind: "episodes", ids: reversed } });
+  const order = (await call("GET", "/curriculum", { token: T2 })).data.stages.find(s => s.status === "current").subjects[0].series[0].episodes.map(e => e.id);
+  check("ترتيب الحلقات اتغيّر عند الطالب", ro.status === 200 && JSON.stringify(order) === JSON.stringify(reversed), order);
+
+  const newEp = await call("POST", "/admin/content/episodes", { ...H, body: { series_id: s1.id, title: "حلقة جديدة في الآخر" } });
+  const lastEp = (await call("GET", "/admin/content/tree", H)).data.find(s => s.name === "الأولى").subjects[0].series[0].episodes.slice(-1)[0];
+  check("الحلقة الجديدة بتتحط في آخر السلسلة", lastEp.id === newEp.data.id, lastEp.title);
+
+  const editBook = await call("PATCH", `/admin/content/books/${s1.books[0].id}`, { ...H, body: { total_pages: 30, file_url: "https://drive.google.com/file/d/abcdefgh/view" } });
+  check("تعديل الكتاب (الصفحات والرابط)", editBook.status === 200, editBook.status);
+
+  const q = (await call("GET", "/admin/tests", H)).data[0].questions[0];
+  const twoCorrect = await call("PATCH", `/admin/tests/questions/${q.id}`, { ...H, body: { options: [{ text: "أ", is_correct: true }, { text: "ب", is_correct: true }] } });
+  check("سؤال بإجابتين صح مرفوض", twoCorrect.status === 400, twoCorrect.data);
+  const editQ = await call("PATCH", `/admin/tests/questions/${q.id}`, { ...H, body: { text: "سؤال معدّل؟", options: [{ text: "صح", is_correct: true }, { text: "غلط", is_correct: false }] } });
+  const qAfter = (await call("GET", "/admin/tests", H)).data[0].questions[0];
+  check("تعديل السؤال والخيارات", editQ.status === 200 && qAfter.text === "سؤال معدّل؟" && qAfter.options.length === 2, qAfter.options.map(o => o.text));
+
+  const editTest = await call("PATCH", `/admin/tests/${qAfter.test_id}`, { ...H, body: { pass_percent: 150 } });
+  check("نسبة نجاح أكبر من 100 مرفوضة", editTest.status === 400, editTest.status);
+
+  // ---------- كلمات المرور ----------
+  const reset = await call("PATCH", `/admin/students/${reg2.data.student.id}/password`, { ...H, body: { new_password: "resetpass1" } });
+  const loginNew = await call("POST", "/auth/login", { headers: ip(), body: { email: `edit${uniq}@t.com`, password: "resetpass1" } });
+  check("المشرف حط كلمة مرور جديدة للطالب والطالب دخل بيها", reset.status === 200 && loginNew.status === 200, loginNew.status);
+
+  const selfWrong = await call("POST", "/account/password", { token: loginNew.data.token, body: { current_password: "wrong", new_password: "whatever123" } });
+  const selfOk = await call("POST", "/account/password", { token: loginNew.data.token, body: { current_password: "resetpass1", new_password: "student123" } });
+  check("الطالب غيّر كلمة المرور بنفسه (وبالحالية الغلط اترفض)", selfWrong.status === 400 && selfOk.status === 200, [selfWrong.status, selfOk.status]);
+  const adminCantUseStudentRoute = await call("POST", "/account/password", { ...H, body: { current_password: "x", new_password: "yyyyyyyy" } });
+  check("مسار كلمة مرور الطالب مقفول على المشرف", adminCantUseStudentRoute.status === 403, adminCantUseStudentRoute.status);
+
   console.log(failures ? `\n❌ ${failures} اختبار فشل` : "\n✅ كل الاختبارات نجحت");
   process.exit(failures ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });

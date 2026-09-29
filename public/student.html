@@ -417,6 +417,11 @@
   .viewer-frame.audio{ background:transparent; padding:12px 0; }
   .viewer-frame iframe, .viewer-frame video{ position:absolute; inset:0; width:100%; height:100%; border:0; }
   .viewer-frame audio{ width:100%; }
+  .pw-label{ display:block; font-size:.8rem; color:var(--ink-soft); margin-bottom:6px; }
+  .pw-input{ width:100%; padding:10px; margin-bottom:14px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:.9rem; }
+  .pw-msg{ font-size:.85rem; margin-bottom:10px; display:none; padding:8px 10px; border-radius:8px; }
+  .pw-msg.ok{ display:block; background:rgba(124,150,131,.18); color:var(--teal-900); }
+  .pw-msg.err{ display:block; background:rgba(168,80,58,.1); color:var(--terracotta); }
   .viewer-foot{ font-size:.75rem; color:var(--ink-soft); margin:10px 0 0; }
   .viewer-foot a{ color:var(--teal-700); }
   @media (prefers-reduced-motion: reduce){ .toast{ transition:none; } }
@@ -443,6 +448,7 @@
   <div class="student-info">
     <span class="student-name" id="studentNameLbl"></span>
     <button class="pill-btn solid" id="btnReport">📊 تقريري</button>
+    <button class="pill-btn" id="btnPassword">🔒 كلمة المرور</button>
     <button class="pill-btn" id="btnLogout">تسجيل خروج</button>
   </div>
 </header>
@@ -509,6 +515,23 @@
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- نافذة تغيير كلمة المرور -->
+<div class="overlay" id="passwordOverlay">
+  <div class="modal" style="max-width:400px;">
+    <button class="modal-close" data-close="passwordOverlay" aria-label="إغلاق">✕</button>
+    <h2>تغيير كلمة المرور</h2>
+    <div id="pwMsg" class="pw-msg"></div>
+    <form id="passwordForm">
+      <label class="pw-label" for="pwCurrent">كلمة المرور الحالية</label>
+      <input class="pw-input" type="password" id="pwCurrent" required autocomplete="current-password">
+      <label class="pw-label" for="pwNew">كلمة المرور الجديدة (8 أحرف على الأقل)</label>
+      <input class="pw-input" type="password" id="pwNew" required minlength="8" autocomplete="new-password">
+      <button type="submit" class="tiny-btn" style="width:100%; padding:12px; font-size:.9rem;">حفظ كلمة المرور</button>
+    </form>
+    <p style="font-size:.75rem; color:var(--ink-soft); margin-top:12px;">نسيت كلمة المرور الحالية؟ اطلب من المشرف يحطلك كلمة مرور جديدة.</p>
+  </div>
+</div>
 
 <!-- نافذة عرض الفيديو / الكتاب جوه الموقع -->
 <div class="overlay" id="viewerOverlay">
@@ -1146,6 +1169,32 @@ document.addEventListener("keydown", (e) => {
 });
 
 document.getElementById("btnReport").addEventListener("click", openReport);
+
+document.getElementById("btnPassword").addEventListener("click", () => {
+  document.getElementById("passwordForm").reset();
+  document.getElementById("pwMsg").className = "pw-msg";
+  document.getElementById("passwordOverlay").classList.add("show");
+});
+document.getElementById("passwordForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById("pwMsg");
+  try {
+    await apiFetch("/account/password", {
+      method: "POST",
+      body: JSON.stringify({
+        current_password: document.getElementById("pwCurrent").value,
+        new_password: document.getElementById("pwNew").value,
+      }),
+    });
+    msg.textContent = "تم تغيير كلمة المرور.";
+    msg.className = "pw-msg ok";
+    e.target.reset();
+  } catch (err) {
+    if (handleAuthError(err)) { closeOverlay("passwordOverlay"); return; }
+    msg.textContent = err.message;
+    msg.className = "pw-msg err";
+  }
+});
 document.getElementById("btnCertificate").addEventListener("click", openCertificate);
 
 /* ======================= بداية الصفحة ======================= */

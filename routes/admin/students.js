@@ -36,6 +36,20 @@ router.patch("/:id/stage", (req, res) => {
   res.json({ ok: true, stage_name: stage.name });
 });
 
+// ---------- كلمة مرور جديدة لطالب نسي كلمة المرور ----------
+router.patch("/:id/password", (req, res) => {
+  const { MIN_PASSWORD } = require("../auth");
+  const pw = typeof req.body.new_password === "string" ? req.body.new_password : "";
+  if (pw.length < MIN_PASSWORD) {
+    return res.status(400).json({ error: `كلمة المرور يجب أن تكون ${MIN_PASSWORD} أحرف على الأقل.` });
+  }
+  const bcrypt = require("bcryptjs");
+  const info = db.prepare(`UPDATE students SET password_hash = ? WHERE id = ?`)
+    .run(bcrypt.hashSync(pw, 10), req.params.id);
+  if (info.changes === 0) return res.status(404).json({ error: "الطالب غير موجود." });
+  res.json({ ok: true });
+});
+
 // ---------- حذف طالب ----------
 router.delete("/:id", (req, res) => {
   db.prepare(`DELETE FROM students WHERE id = ?`).run(req.params.id);

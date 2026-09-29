@@ -116,6 +116,15 @@
   a.open-link:hover{background:var(--line-soft);}
   select.stage-select{margin:0; padding:5px 6px; font-size:.78rem; width:auto;}
   .table-wrap{overflow-x:auto;}
+  .move-btns{display:inline-flex; gap:2px;}
+  .btn.move{padding:3px 8px; min-width:28px;}
+  .btn:disabled{opacity:.35; cursor:not-allowed;}
+  .muted{color:var(--ink-soft); font-size:.75rem; font-weight:400;}
+  .test-card{border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin-bottom:10px;}
+  .test-card-head{display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;}
+  .test-card-head .actions{display:flex; gap:6px;}
+  .edit-options{margin-bottom:12px;}
+  .tree-stage > .head .actions, .tree-subject > .head .actions{display:flex; gap:6px; align-items:center; flex-wrap:wrap;}
   .panel-head{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:4px;}
   .panel-head h3{margin:0;}
 </style>
@@ -148,8 +157,8 @@
       <form id="formStage">
         <label>اسم المرحلة</label>
         <input type="text" id="stageName" required>
-        <label>الترتيب (رقم، الأصغر يظهر أولاً)</label>
-        <input type="number" id="stageOrder" value="0" min="0">
+        <label>الترتيب (اختياري، الأصغر يظهر أولاً)</label>
+        <input type="number" id="stageOrder" min="0" placeholder="تلقائي: في الآخر">
         <button class="btn" type="submit">إضافة</button>
       </form>
     </div>
@@ -234,7 +243,7 @@
 <section class="tab-panel" id="tab-content-view">
   <div class="panel-card">
     <h3>الشجرة الكاملة للمحتوى</h3>
-    <p class="hint">اضغط 🗑 لحذف أي عنصر (سيُحذف كل ما بداخله أيضًا)</p>
+    <p class="hint">✏️ لتعديل أي عنصر، و↑↓ لتغيير ترتيبه (الطالب بيشوف نفس الترتيب). 🗑 بيحذف العنصر وكل اللي جواه ومعاه تقدم الطلاب فيه، فاستخدم ✏️ لو محتاج تصلّح غلطة.</p>
     <div id="contentTree">جارٍ التحميل...</div>
   </div>
 </section>
@@ -332,6 +341,19 @@
     <div id="adminsList">جارٍ التحميل...</div>
   </div>
 </section>
+
+<!-- نافذة التعديل -->
+<div class="overlay" id="editOverlay">
+  <div class="modal">
+    <button class="modal-close" data-close="editOverlay" aria-label="إغلاق">✕</button>
+    <h2 id="editTitle" style="color:var(--teal-900); margin-top:0;"></h2>
+    <div class="msg" id="msg-edit"></div>
+    <form id="editForm">
+      <div id="editFields"></div>
+      <button class="btn" type="submit">حفظ التعديل</button>
+    </form>
+  </div>
+</div>
 
 <!-- نافذة تقرير الطالب -->
 <div class="overlay" id="reportOverlay">
@@ -502,7 +524,7 @@ const val = id => document.getElementById(id).value.trim();
 const num = id => parseInt(document.getElementById(id).value, 10);
 
 bindForm("formStage", "msg-stage", "/admin/content/stages",
-  () => ({ name: val("stageName"), order_index: num("stageOrder") || 0 }), "تمت إضافة المرحلة.");
+  () => ({ name: val("stageName"), order_index: val("stageOrder") }), "تمت إضافة المرحلة.");
 bindForm("formSubject", "msg-subject", "/admin/content/subjects",
   () => ({ name: val("subjectName"), icon: val("subjectIcon") }), "تمت إضافة القسم.");
 bindForm("formLink", "msg-link", "/admin/content/stage-subject",
@@ -542,52 +564,189 @@ document.getElementById("formQuestion").addEventListener("submit", async (e) => 
   } catch (err) { showMsg("msg-question", err.message, false); }
 });
 
+/* ======================= نافذة التعديل ======================= */
+// openEdit({ title, path, fields: [{ name, label, type, value, ... }] })
+// أنواع الحقول: text | url | number | options (خيارات السؤال مع تحديد الصحيح)
+let editState = null;
+
+function fieldHtml(f, i) {
+  const id = `ef_${i}`;
+  if (f.type === "options") {
+    const opts = f.value.length >= 4 ? f.value : [...f.value, ...Array(4 - f.value.length).fill({ text: "", is_correct: false })];
+    return `<label>${esc(f.label)}</label>
+      <div class="edit-options">${opts.map((o, oi) => `
+        <div class="opt-row">
+          <input type="radio" name="${id}_correct" value="${oi}"${o.is_correct ? " checked" : ""} aria-label="الإجابة الصحيحة">
+          <input type="text" class="edit-opt-text" value="${esc(o.text)}" placeholder="خيار ${oi + 1}">
+        </div>`).join("")}
+      </div>`;
+  }
+  const type = f.type === "url" ? "url" : f.type === "number" ? "number" : "text";
+  return `<label for="${id}">${esc(f.label)}</label>
+    <input id="${id}" type="${type}" value="${esc(f.value === null || f.value === undefined ? "" : f.value)}"
+      ${f.required ? "required" : ""} ${f.min !== undefined ? `min="${f.min}"` : ""} ${f.max !== undefined ? `max="${f.max}"` : ""}
+      ${f.placeholder ? `placeholder="${esc(f.placeholder)}"` : ""} ${type === "url" ? 'dir="ltr"' : ""}>
+    ${f.hint ? `<p class="hint" style="margin-top:-6px;">${esc(f.hint)}</p>` : ""}`;
+}
+
+function openEdit(cfg) {
+  editState = cfg;
+  document.getElementById("editTitle").textContent = cfg.title;
+  document.getElementById("editFields").innerHTML = cfg.fields.map(fieldHtml).join("");
+  const msg = document.getElementById("msg-edit");
+  msg.className = "msg"; msg.textContent = "";
+  document.getElementById("editOverlay").classList.add("show");
+  const first = document.querySelector("#editFields input");
+  if (first) first.focus();
+}
+
+document.getElementById("editForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (!editState) return;
+  const body = {};
+  editState.fields.forEach((f, i) => {
+    if (f.type === "options") {
+      const correct = document.querySelector(`input[name="ef_${i}_correct"]:checked`);
+      const correctIdx = correct ? parseInt(correct.value, 10) : -1;
+      body[f.name] = [...document.querySelectorAll("#editFields .edit-opt-text")]
+        .map((inp, oi) => ({ text: inp.value.trim(), is_correct: oi === correctIdx }))
+        .filter(o => o.text);
+    } else {
+      body[f.name] = document.getElementById(`ef_${i}`).value.trim();
+    }
+  });
+  const btn = e.target.querySelector('button[type="submit"]');
+  btn.disabled = true;
+  try {
+    await apiFetch(editState.path, { method: "PATCH", body: JSON.stringify(body) });
+    document.getElementById("editOverlay").classList.remove("show");
+    editState = null;
+    await refreshAll();
+  } catch (err) {
+    showMsg("msg-edit", err.message, false);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 /* ======================= عرض المحتوى (الشجرة) ======================= */
 const delBtn = (kind, id, label = "🗑") =>
-  `<button class="btn danger small" data-del="${kind}" data-id="${esc(id)}">${label}</button>`;
+  `<button class="btn danger small" data-del="${kind}" data-id="${esc(id)}" title="حذف">${label}</button>`;
+const editBtn = key => `<button class="btn small outline" data-edit="${esc(key)}" title="تعديل">✏️</button>`;
+
+// مجموعات الترتيب: كل مجموعة = قائمة ids لعناصر أخوات بنفس الترتيب اللي ظاهر
+let orderGroups = {};
+let editables = {};
+
+function moveBtns(kind, groupKey, id, index, count) {
+  if (count < 2) return "";
+  return `<span class="move-btns">
+    <button class="btn small outline move" data-move="up" data-kind="${kind}" data-group="${esc(groupKey)}" data-id="${esc(id)}" ${index === 0 ? "disabled" : ""} title="لأعلى" aria-label="تحريك لأعلى">↑</button>
+    <button class="btn small outline move" data-move="down" data-kind="${kind}" data-group="${esc(groupKey)}" data-id="${esc(id)}" ${index === count - 1 ? "disabled" : ""} title="لأسفل" aria-label="تحريك لأسفل">↓</button>
+  </span>`;
+}
 
 function renderTree(tree) {
   const el = document.getElementById("contentTree");
+  orderGroups = { stages: tree.map(s => s.id) };
+  editables = {};
   if (tree.length === 0) { el.innerHTML = `<p class="empty-note">لا توجد مراحل بعد.</p>`; return; }
 
-  el.innerHTML = tree.map(stage => `
+  el.innerHTML = tree.map((stage, si) => {
+    editables["stage:" + stage.id] = {
+      title: "تعديل المرحلة", path: "/admin/content/stages/" + stage.id,
+      fields: [{ name: "name", label: "اسم المرحلة", value: stage.name, required: true }],
+    };
+    const subjGroup = "ss:" + stage.id;
+    orderGroups[subjGroup] = stage.subjects.map(s => s.stage_subject_id);
+    return `
     <div class="tree-stage">
       <div class="head">
         <strong>📚 ${esc(stage.name)}</strong>
-        ${delBtn("stages", stage.id, "🗑 حذف المرحلة")}
+        <span class="actions">
+          ${moveBtns("stages", "stages", stage.id, si, tree.length)}
+          ${editBtn("stage:" + stage.id)}
+          ${delBtn("stages", stage.id, "🗑 حذف المرحلة")}
+        </span>
       </div>
       ${stage.subjects.length === 0
         ? `<p class="empty-note" style="padding:10px 16px;">لا يوجد أقسام مربوطة بهذه المرحلة.</p>`
-        : stage.subjects.map(subj => `
+        : stage.subjects.map((subj, sbi) => {
+          editables["subject:" + subj.subject_id] = {
+            title: "تعديل القسم", path: "/admin/content/subjects/" + subj.subject_id,
+            fields: [
+              { name: "name", label: "اسم القسم", value: subj.name, required: true, hint: "التعديل هيظهر في كل المراحل اللي القسم ده مربوط بيها." },
+              { name: "icon", label: "أيقونة (إيموجي، اختياري)", value: subj.icon || "" },
+            ],
+          };
+          const seriesGroup = "series:" + subj.stage_subject_id;
+          orderGroups[seriesGroup] = subj.series.map(s => s.id);
+          return `
           <div class="tree-subject">
             <div class="head">
               <span>${esc(subj.icon || "")} ${esc(subj.name)}</span>
-              ${delBtn("stage-subject", subj.stage_subject_id, "🗑 فك الربط")}
+              <span class="actions">
+                ${moveBtns("stage-subject", subjGroup, subj.stage_subject_id, sbi, stage.subjects.length)}
+                ${editBtn("subject:" + subj.subject_id)}
+                ${delBtn("stage-subject", subj.stage_subject_id, "🗑 فك الربط")}
+              </span>
             </div>
             ${subj.series.length === 0
               ? `<p class="empty-note">لا يوجد سلاسل.</p>`
-              : subj.series.map(s => `
+              : subj.series.map((s, sri) => {
+                editables["series:" + s.id] = {
+                  title: "تعديل السلسلة", path: "/admin/content/series/" + s.id,
+                  fields: [
+                    { name: "name", label: "اسم السلسلة", value: s.name, required: true },
+                    { name: "url", label: "رابط السلسلة كاملة (اختياري)", type: "url", value: s.url || "", placeholder: "https://www.youtube.com/playlist?list=..." },
+                  ],
+                };
+                const epGroup = "ep:" + s.id, bkGroup = "bk:" + s.id;
+                orderGroups[epGroup] = s.episodes.map(e => e.id);
+                orderGroups[bkGroup] = s.books.map(b => b.id);
+                return `
                 <div class="tree-series">
                   <div class="head">
-                    <span>◆ ${esc(s.name)}</span>
+                    <span>◆ ${esc(s.name)}${s.url ? "" : ' <span class="muted">(من غير رابط)</span>'}</span>
                     <span class="actions">
                       ${openLink(s.url, "فتح رابط السلسلة")}
-                      <button class="btn small outline" data-series-url="${esc(s.id)}" data-current="${esc(s.url || "")}">${s.url ? "✏️ تعديل الرابط" : "➕ رابط السلسلة"}</button>
+                      ${moveBtns("series", seriesGroup, s.id, sri, subj.series.length)}
+                      ${editBtn("series:" + s.id)}
                       ${delBtn("series", s.id, "🗑 حذف السلسلة")}
                     </span>
                   </div>
                   <ul class="tree-item-list">
-                    ${s.episodes.map(e => `<li><span>▶️ ${esc(e.title)}</span><span class="actions">${openLink(e.url, "فتح الحلقة")}${delBtn("episodes", e.id)}</span></li>`).join("")}
-                    ${s.books.map(b => `<li><span>📖 ${esc(b.title)} (${esc(b.total_pages)} صفحة)</span><span class="actions">${openLink(b.file_url, "فتح الكتاب")}${delBtn("books", b.id)}</span></li>`).join("")}
-                    ${s.test ? `<li><span>📝 اختبار: ${esc(s.test.title)}</span><span class="actions">${delBtn("tests", s.test.id)}</span></li>` : ""}
+                    ${s.episodes.map((e, ei) => {
+                      editables["episode:" + e.id] = {
+                        title: "تعديل الحلقة", path: "/admin/content/episodes/" + e.id,
+                        fields: [
+                          { name: "title", label: "عنوان الحلقة", value: e.title, required: true },
+                          { name: "duration", label: "المدة (مثال: 40 د)", value: e.duration || "" },
+                          { name: "url", label: "رابط الحلقة", type: "url", value: e.url || "", placeholder: "https://" },
+                        ],
+                      };
+                      return `<li><span>▶️ ${esc(e.title)}${e.url ? "" : ' <span class="muted">(من غير رابط)</span>'}</span><span class="actions">${openLink(e.url, "فتح الحلقة")}${moveBtns("episodes", epGroup, e.id, ei, s.episodes.length)}${editBtn("episode:" + e.id)}${delBtn("episodes", e.id)}</span></li>`;
+                    }).join("")}
+                    ${s.books.map((b, bi) => {
+                      editables["book:" + b.id] = {
+                        title: "تعديل الكتاب", path: "/admin/content/books/" + b.id,
+                        fields: [
+                          { name: "title", label: "عنوان الكتاب", value: b.title, required: true },
+                          { name: "total_pages", label: "عدد الصفحات", type: "number", value: b.total_pages, min: 0, required: true },
+                          { name: "file_url", label: "رابط الملف", type: "url", value: b.file_url || "", placeholder: "https://drive.google.com/..." },
+                        ],
+                      };
+                      return `<li><span>📖 ${esc(b.title)} (${esc(b.total_pages)} صفحة)${b.file_url ? "" : ' <span class="muted">(من غير رابط)</span>'}</span><span class="actions">${openLink(b.file_url, "فتح الكتاب")}${moveBtns("books", bkGroup, b.id, bi, s.books.length)}${editBtn("book:" + b.id)}${delBtn("books", b.id)}</span></li>`;
+                    }).join("")}
+                    ${(s.tests || []).map(t => `<li><span>📝 اختبار: ${esc(t.title)}</span><span class="actions"><button class="btn small outline" data-goto-tests title="تعديل من تبويب الاختبارات">✏️</button>${delBtn("tests", t.id)}</span></li>`).join("")}
                   </ul>
-                </div>
-              `).join("")}
-          </div>
-        `).join("")
+                </div>`;
+              }).join("")}
+          </div>`;
+        }).join("")
       }
-    </div>
-  `).join("");
+    </div>`;
+  }).join("");
 
   const endpointMap = {
     stages: "/admin/content/stages/",
@@ -597,17 +756,27 @@ function renderTree(tree) {
     books: "/admin/content/books/",
     tests: "/admin/tests/",
   };
-  el.querySelectorAll("[data-series-url]").forEach(btn => {
+
+  el.querySelectorAll("[data-edit]").forEach(btn => {
+    btn.addEventListener("click", () => openEdit(editables[btn.dataset.edit]));
+  });
+  el.querySelectorAll("[data-goto-tests]").forEach(btn => {
+    btn.addEventListener("click", () => document.querySelector('.tab-btn[data-tab="tests"]').click());
+  });
+  el.querySelectorAll("[data-move]").forEach(btn => {
     btn.addEventListener("click", async () => {
-      const url = prompt("رابط السلسلة كاملة (قائمة تشغيل يوتيوب مثلاً). سيبه فاضي عشان تمسح الرابط:", btn.dataset.current);
-      if (url === null) return;
+      const ids = [...orderGroups[btn.dataset.group]];
+      const i = ids.indexOf(Number(btn.dataset.id));
+      const j = btn.dataset.move === "up" ? i - 1 : i + 1;
+      if (i < 0 || j < 0 || j >= ids.length) return;
+      [ids[i], ids[j]] = [ids[j], ids[i]];
+      el.querySelectorAll("[data-move]").forEach(b => { b.disabled = true; });
       try {
-        await apiFetch("/admin/content/series/" + btn.dataset.seriesUrl, { method: "PATCH", body: JSON.stringify({ url: url.trim() }) });
+        await apiFetch("/admin/content/reorder", { method: "POST", body: JSON.stringify({ kind: btn.dataset.kind, ids }) });
         await refreshAll();
-      } catch (err) { alert(err.message); }
+      } catch (err) { alert(err.message); await refreshAll(); }
     });
   });
-
   el.querySelectorAll("[data-del]").forEach(btn => {
     btn.addEventListener("click", async () => {
       if (!confirm("متأكد من الحذف؟ سيُحذف كل ما بداخل هذا العنصر، ومعه تقدم الطلاب فيه.")) return;
@@ -623,27 +792,56 @@ function renderTree(tree) {
 function renderTestsList(tests) {
   const el = document.getElementById("testsList");
   if (tests.length === 0) { el.innerHTML = `<p class="empty-note">لا توجد اختبارات بعد.</p>`; return; }
-  el.innerHTML = tests.map(t => `
-    <div style="border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin-bottom:10px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+  const testEdits = {}, questionEdits = {};
+  el.innerHTML = tests.map(t => {
+    testEdits[t.id] = {
+      title: "تعديل الاختبار", path: "/admin/tests/" + t.id,
+      fields: [
+        { name: "title", label: "عنوان الاختبار", value: t.title, required: true },
+        { name: "pass_percent", label: "نسبة النجاح (%)", type: "number", value: t.pass_percent, min: 1, max: 100, required: true },
+      ],
+    };
+    return `
+    <div class="test-card">
+      <div class="test-card-head">
         <strong style="color:var(--teal-900);">${esc(t.title)}</strong>
-        <button class="btn danger small" data-del-test="${esc(t.id)}">🗑 حذف الاختبار</button>
+        <span class="actions">
+          <button class="btn small outline" data-edit-test="${esc(t.id)}" title="تعديل">✏️ تعديل</button>
+          <button class="btn danger small" data-del-test="${esc(t.id)}">🗑 حذف الاختبار</button>
+        </span>
       </div>
       <div style="font-size:.78rem; color:var(--ink-soft); margin-top:4px;">
         السلسلة: ${esc(t.series_name)} — نسبة النجاح: ${esc(t.pass_percent)}%
         ${t.questions.length === 0 ? ` — <span style="color:var(--terracotta);">مفيهوش أسئلة، مش ظاهر للطلاب</span>` : ""}
       </div>
       <ul class="tree-item-list" style="margin-top:8px;">
-        ${t.questions.map(q => `
+        ${t.questions.map(q => {
+          questionEdits[q.id] = {
+            title: "تعديل السؤال", path: "/admin/tests/questions/" + q.id,
+            fields: [
+              { name: "text", label: "نص السؤال", value: q.text, required: true },
+              { name: "options", label: "الخيارات (حدد الصحيح)", type: "options", value: q.options.map(o => ({ text: o.text, is_correct: !!o.is_correct })) },
+            ],
+          };
+          return `
           <li>
-            <span>${esc(q.text)} <span style="color:var(--ink-soft);">(الصحيح: ${esc((q.options.find(o => o.is_correct) || {}).text)})</span></span>
-            <button class="btn danger small" data-del-question="${esc(q.id)}">🗑</button>
-          </li>
-        `).join("") || `<li class="empty-note">لا توجد أسئلة بعد.</li>`}
+            <span>${esc(q.text)} <span class="muted">(الصحيح: ${esc((q.options.find(o => o.is_correct) || {}).text)})</span></span>
+            <span class="actions">
+              <button class="btn small outline" data-edit-question="${esc(q.id)}" title="تعديل">✏️</button>
+              <button class="btn danger small" data-del-question="${esc(q.id)}" title="حذف">🗑</button>
+            </span>
+          </li>`;
+        }).join("") || `<li class="empty-note">لا توجد أسئلة بعد.</li>`}
       </ul>
-    </div>
-  `).join("");
+    </div>`;
+  }).join("");
 
+  el.querySelectorAll("[data-edit-test]").forEach(btn => {
+    btn.addEventListener("click", () => openEdit(testEdits[btn.dataset.editTest]));
+  });
+  el.querySelectorAll("[data-edit-question]").forEach(btn => {
+    btn.addEventListener("click", () => openEdit(questionEdits[btn.dataset.editQuestion]));
+  });
   el.querySelectorAll("[data-del-test]").forEach(btn => {
     btn.addEventListener("click", async () => {
       if (!confirm("حذف الاختبار بكل أسئلته ونتائج الطلاب فيه؟")) return;
@@ -681,6 +879,7 @@ async function loadStudents() {
               <td><span class="badge ${s.is_blocked ? "blocked" : "active"}">${s.is_blocked ? "موقوف" : "فعّال"}</span></td>
               <td style="display:flex; gap:6px; flex-wrap:wrap;">
                 <button class="btn small outline" data-report="${esc(s.id)}">📊 تقرير</button>
+                <button class="btn small outline" data-reset-pw="${esc(s.id)}" data-name="${esc(s.full_name)}" title="كلمة مرور جديدة">🔑</button>
                 <button class="btn small ${s.is_blocked ? "" : "danger"}" data-block="${esc(s.id)}" data-blocked="${s.is_blocked ? 1 : 0}">
                   ${s.is_blocked ? "تفعيل" : "منع"}
                 </button>
@@ -694,6 +893,14 @@ async function loadStudents() {
 
     wrap.querySelectorAll("[data-report]").forEach(btn => {
       btn.addEventListener("click", () => openStudentReport(btn.dataset.report));
+    });
+    wrap.querySelectorAll("[data-reset-pw]").forEach(btn => {
+      btn.addEventListener("click", () => openEdit({
+        title: "كلمة مرور جديدة للطالب: " + btn.dataset.name,
+        path: `/admin/students/${btn.dataset.resetPw}/password`,
+        fields: [{ name: "new_password", label: "كلمة المرور الجديدة (8 أحرف على الأقل)", value: "", required: true,
+                   hint: "ابعتها للطالب، وهو يقدر يغيّرها بعد كده من صفحته." }],
+      }));
     });
     wrap.querySelectorAll("[data-stage-for]").forEach(sel => {
       const original = sel.value;

@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS books (
   title           TEXT NOT NULL,
   file_url        TEXT,
   total_pages     INTEGER NOT NULL DEFAULT 0,
+  order_index     INTEGER NOT NULL DEFAULT 0,
   FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE CASCADE
 );
 

@@ -22,6 +22,7 @@ function addColumnIfMissing(table, column, definition) {
   if (!cols.includes(column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
 }
 addColumnIfMissing("series", "url", "TEXT");
+addColumnIfMissing("books", "order_index", "INTEGER NOT NULL DEFAULT 0");
 
 db.DB_PATH = DB_PATH;
 module.exports = db;
