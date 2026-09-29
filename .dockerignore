@@ -1,3 +1,4 @@
-node_modules/
+node_modules
 .env
+.git
 db/rasokh.db

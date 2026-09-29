@@ -1,3 +1,13 @@
+---
+title: Rushokh
+emoji: 📚
+colorFrom: green
+colorTo: yellow
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # رسوخ — الباك إند (Backend)
 
 باك إند منصة "رسوخ" لأكاديمية العلم الشرعي. مبني بـ **Node.js + Express**، وقاعدة بيانات
