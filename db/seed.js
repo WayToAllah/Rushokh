@@ -193,4 +193,29 @@ function seed() {
   console.log("   دخول الطالب   -> ahmed@rasokh.test / student123");
 }
 
-seed();
+function hasAnyData() {
+  const n = t => db.prepare(`SELECT COUNT(*) AS n FROM ${t}`).get().n;
+  return n("students") + n("admins") + n("stages") + n("subjects") > 0;
+}
+
+module.exports = { seed, hasAnyData };
+
+// التشغيل من سطر الأوامر: npm run seed
+// بيرفض يمسح قاعدة بيانات فيها بيانات، إلا مع --force (وبيعمل نسخة احتياطية الأول)
+if (require.main === module) {
+  const force = process.argv.includes("--force");
+  if (hasAnyData() && !force) {
+    console.log("");
+    console.log("⛔ قاعدة البيانات فيها بيانات بالفعل (طلاب أو محتوى)، ومش هيتم مسحها.");
+    console.log("   الأمر ده بيمسح كل حاجة ويرجّع بيانات التجربة.");
+    console.log("   لو متأكد إنك عايز تمسح كل البيانات، اكتب:");
+    console.log("   npm run seed -- --force");
+    console.log("");
+    process.exit(1);
+  }
+  if (hasAnyData()) {
+    const file = require("../lib/backup").backupNow();
+    if (file) console.log(`💾 نسخة احتياطية قبل المسح: ${file}`);
+  }
+  seed();
+}

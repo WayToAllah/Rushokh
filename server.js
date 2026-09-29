@@ -11,6 +11,7 @@ const adminContentRoutes = require("./routes/admin/content");
 const adminTestRoutes = require("./routes/admin/tests");
 const adminStudentRoutes = require("./routes/admin/students");
 const adminAccountRoutes = require("./routes/admin/account");
+const adminReportRoutes = require("./routes/admin/reports");
 
 const app = express();
 app.disable("x-powered-by");
@@ -36,6 +37,7 @@ app.use("/api/admin/content", adminContentRoutes);
 app.use("/api/admin/tests", adminTestRoutes);
 app.use("/api/admin/students", adminStudentRoutes);
 app.use("/api/admin/account", adminAccountRoutes);
+app.use("/api/admin/reports", adminReportRoutes);
 
 app.use("/api", (req, res) => res.status(404).json({ error: "المسار غير موجود." }));
 
@@ -51,4 +53,5 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`🚀 خادم رسوخ يعمل على http://localhost:${PORT}`);
+  require("./lib/backup").startAutoBackup();
 });

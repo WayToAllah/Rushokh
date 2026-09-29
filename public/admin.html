@@ -111,11 +111,13 @@
 
   .opt-row{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
   .opt-row input[type="text"]{margin-bottom:0; flex:1;}
-  .tree-item-list li .actions{display:flex; gap:6px; align-items:center; flex-shrink:0;}
+  .tree-item-list li .actions, .tree-series .head .actions{display:flex; gap:6px; align-items:center; flex-shrink:0; flex-wrap:wrap;}
   a.open-link{text-decoration:none; font-size:.85rem; padding:2px 6px; border-radius:6px; border:1px solid var(--line);}
   a.open-link:hover{background:var(--line-soft);}
   select.stage-select{margin:0; padding:5px 6px; font-size:.78rem; width:auto;}
   .table-wrap{overflow-x:auto;}
+  .panel-head{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:4px;}
+  .panel-head h3{margin:0;}
 </style>
 </head>
 <body>
@@ -187,6 +189,8 @@
         <select id="seriesStageSubject" required></select>
         <label>اسم السلسلة</label>
         <input type="text" id="seriesName" required>
+        <label>رابط السلسلة كاملة (اختياري، مثلاً قائمة تشغيل يوتيوب)</label>
+        <input type="url" id="seriesUrl" placeholder="https://www.youtube.com/playlist?list=..." dir="ltr">
         <button class="btn" type="submit">إضافة</button>
       </form>
     </div>
@@ -282,8 +286,12 @@
 <!-- ======================= تبويب: الطلاب ======================= -->
 <section class="tab-panel" id="tab-students">
   <div class="panel-card">
-    <h3>قائمة الطلاب</h3>
-    <p class="hint">الطالب ينتقل للمرحلة التالية تلقائيًا. غيّر المرحلة من القائمة لو محتاج تنقله بنفسك.</p>
+    <div class="panel-head">
+      <h3>قائمة الطلاب</h3>
+      <button class="btn" id="btnExportExcel">⬇️ تصدير تقرير Excel</button>
+    </div>
+    <p class="hint">الطالب ينتقل للمرحلة التالية تلقائيًا. غيّر المرحلة من القائمة لو محتاج تنقله بنفسك.
+      ملف Excel فيه ملخص لكل طالب، وتقدمه في كل مادة.</p>
     <div id="studentsTableWrap">جارٍ التحميل...</div>
   </div>
 </section>
@@ -500,7 +508,7 @@ bindForm("formSubject", "msg-subject", "/admin/content/subjects",
 bindForm("formLink", "msg-link", "/admin/content/stage-subject",
   () => ({ stage_id: num("linkStage"), subject_id: num("linkSubject") }), "تم الربط.", false);
 bindForm("formSeries", "msg-series", "/admin/content/series",
-  () => ({ stage_subject_id: num("seriesStageSubject"), name: val("seriesName") }), "تمت إضافة السلسلة.");
+  () => ({ stage_subject_id: num("seriesStageSubject"), name: val("seriesName"), url: val("seriesUrl") }), "تمت إضافة السلسلة.");
 bindForm("formEpisode", "msg-episode", "/admin/content/episodes",
   () => ({ series_id: num("episodeSeries"), title: val("episodeTitle"), duration: val("episodeDuration"), url: val("episodeUrl") }),
   "تمت إضافة الحلقة.");
@@ -562,7 +570,11 @@ function renderTree(tree) {
                 <div class="tree-series">
                   <div class="head">
                     <span>◆ ${esc(s.name)}</span>
-                    ${delBtn("series", s.id, "🗑 حذف السلسلة")}
+                    <span class="actions">
+                      ${openLink(s.url, "فتح رابط السلسلة")}
+                      <button class="btn small outline" data-series-url="${esc(s.id)}" data-current="${esc(s.url || "")}">${s.url ? "✏️ تعديل الرابط" : "➕ رابط السلسلة"}</button>
+                      ${delBtn("series", s.id, "🗑 حذف السلسلة")}
+                    </span>
                   </div>
                   <ul class="tree-item-list">
                     ${s.episodes.map(e => `<li><span>▶️ ${esc(e.title)}</span><span class="actions">${openLink(e.url, "فتح الحلقة")}${delBtn("episodes", e.id)}</span></li>`).join("")}
@@ -585,6 +597,17 @@ function renderTree(tree) {
     books: "/admin/content/books/",
     tests: "/admin/tests/",
   };
+  el.querySelectorAll("[data-series-url]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const url = prompt("رابط السلسلة كاملة (قائمة تشغيل يوتيوب مثلاً). سيبه فاضي عشان تمسح الرابط:", btn.dataset.current);
+      if (url === null) return;
+      try {
+        await apiFetch("/admin/content/series/" + btn.dataset.seriesUrl, { method: "PATCH", body: JSON.stringify({ url: url.trim() }) });
+        await refreshAll();
+      } catch (err) { alert(err.message); }
+    });
+  });
+
   el.querySelectorAll("[data-del]").forEach(btn => {
     btn.addEventListener("click", async () => {
       if (!confirm("متأكد من الحذف؟ سيُحذف كل ما بداخل هذا العنصر، ومعه تقدم الطلاب فيه.")) return;
@@ -732,6 +755,39 @@ async function openStudentReport(studentId) {
     body.innerHTML = `<p style="color:var(--terracotta);">${esc(err.message)}</p>`;
   }
 }
+
+/* ======================= تصدير Excel ======================= */
+document.getElementById("btnExportExcel").addEventListener("click", async (e) => {
+  const btn = e.currentTarget;
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "جارٍ تجهيز الملف...";
+  try {
+    const res = await fetch(API_BASE + "/admin/reports/students.xlsx", {
+      headers: { Authorization: "Bearer " + authToken },
+    });
+    if (res.status === 401) { logoutTo("index.html"); return; }
+    if (!res.ok) {
+      let msg = "تعذّر تجهيز الملف.";
+      try { msg = (await res.json()).error || msg; } catch (err) {}
+      throw new Error(msg);
+    }
+    const blob = await res.blob();
+    const name = (res.headers.get("Content-Disposition") || "").match(/filename="([^"]+)"/);
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name ? name[1] : "rasokh-students.xlsx";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  } catch (err) {
+    alert(err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = label;
+  }
+});
 
 /* ======================= حسابي ======================= */
 async function loadAccount() {

@@ -102,14 +102,25 @@ router.delete("/stage-subject/:id", (req, res) => {
 
 // ---------- السلاسل ----------
 router.post("/series", (req, res) => {
-  const { stage_subject_id, name, order_index } = req.body;
+  const { stage_subject_id, name, url, order_index } = req.body;
   if (!stage_subject_id || !name) {
     return res.status(400).json({ error: "القسم داخل المرحلة واسم السلسلة مطلوبان." });
   }
+  const link = safeUrl(url);
+  if (!link.ok) return res.status(400).json({ error: "رابط السلسلة يجب أن يبدأ بـ http:// أو https://" });
   const info = db.prepare(
-    `INSERT INTO series (stage_subject_id, name, order_index) VALUES (?, ?, ?)`
-  ).run(stage_subject_id, name, order_index || 0);
+    `INSERT INTO series (stage_subject_id, name, url, order_index) VALUES (?, ?, ?, ?)`
+  ).run(stage_subject_id, name, link.value, order_index || 0);
   res.status(201).json({ id: Number(info.lastInsertRowid), name });
+});
+
+// تعديل رابط سلسلة موجودة (قائمة تشغيل يوتيوب مثلاً). رابط فاضي = مسح الرابط.
+router.patch("/series/:id", (req, res) => {
+  const link = safeUrl(req.body.url);
+  if (!link.ok) return res.status(400).json({ error: "رابط السلسلة يجب أن يبدأ بـ http:// أو https://" });
+  const info = db.prepare(`UPDATE series SET url = ? WHERE id = ?`).run(link.value, req.params.id);
+  if (info.changes === 0) return res.status(404).json({ error: "السلسلة غير موجودة." });
+  res.json({ ok: true, url: link.value });
 });
 
 router.delete("/series/:id", (req, res) => {

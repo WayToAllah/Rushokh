@@ -400,6 +400,25 @@
     transition:opacity .25s ease, transform .25s ease; z-index:80; max-width:calc(100% - 32px); text-align:center;
   }
   .toast.show{ opacity:1; transform:translate(50%, 0); }
+  button.item-icon.link{ border:none; background:var(--teal-700); color:#fff; cursor:pointer; font-size:1rem; }
+  button.item-icon.link:hover{ background:var(--teal-900); }
+  .series-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:8px; }
+  .series-head .series-title{ margin-bottom:0; }
+  .series-play{
+    background:transparent; border:1px solid var(--teal-700); color:var(--teal-700);
+    padding:6px 12px; border-radius:999px; font-size:.78rem; font-weight:600; text-decoration:none; cursor:pointer;
+  }
+  .series-play:hover{ background:var(--teal-700); color:#fff; }
+  .viewer-modal{ max-width:960px; padding:22px; }
+  .viewer-modal h2{ font-size:1.1rem; margin:0 44px 14px 0; }
+  .viewer-frame{ position:relative; width:100%; background:#0b1413; border-radius:10px; overflow:hidden; }
+  .viewer-frame.video{ aspect-ratio:16/9; }
+  .viewer-frame.doc{ height:min(78vh, 900px); background:#fff; }
+  .viewer-frame.audio{ background:transparent; padding:12px 0; }
+  .viewer-frame iframe, .viewer-frame video{ position:absolute; inset:0; width:100%; height:100%; border:0; }
+  .viewer-frame audio{ width:100%; }
+  .viewer-foot{ font-size:.75rem; color:var(--ink-soft); margin:10px 0 0; }
+  .viewer-foot a{ color:var(--teal-700); }
   @media (prefers-reduced-motion: reduce){ .toast{ transition:none; } }
 
   @media print{
@@ -491,6 +510,18 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<!-- نافذة عرض الفيديو / الكتاب جوه الموقع -->
+<div class="overlay" id="viewerOverlay">
+  <div class="modal viewer-modal">
+    <button class="modal-close" id="viewerClose" aria-label="إغلاق">✕</button>
+    <h2 id="viewerTitle"></h2>
+    <div id="viewerFrame" class="viewer-frame"></div>
+    <p class="viewer-foot">لو المحتوى ما ظهرش: <a id="viewerExternal" href="#" target="_blank" rel="noopener noreferrer">افتحه في نافذة جديدة</a></p>
+  </div>
+</div>
+
+<script src="media.js"></script>
+
 <script>
 /* ============================================================
    صفحة الطالب — متصلة بالسيرفر عبر /api
@@ -516,6 +547,57 @@ function safeHref(url) {
     const u = new URL(url, window.location.href);
     return (u.protocol === "http:" || u.protocol === "https:") ? u.href : null;
   } catch (e) { return null; }
+}
+
+/* ======================= عرض الفيديو والكتب جوه الموقع ======================= */
+// زرار الأيقونة: لو الرابط يتعرض جوه الموقع يبقى زرار يفتح النافذة، غير كده رابط لتبويب جديد
+function openerHtml(url, icon, title) {
+  const href = url ? safeHref(url) : null;
+  if (!href) return `<div class="item-icon" title="لا يوجد رابط بعد">${icon}</div>`;
+  if (window.RasokhMedia && RasokhMedia.embedFor(href)) {
+    return `<button class="item-icon link" data-view="${esc(href)}" data-title="${esc(title)}" title="${esc(title)}" aria-label="${esc(title)}">${icon}</button>`;
+  }
+  return `<a class="item-icon link" href="${esc(href)}" target="_blank" rel="noopener noreferrer" title="${esc(title)}">${icon}</a>`;
+}
+
+function openViewer(url, title) {
+  const media = window.RasokhMedia ? RasokhMedia.embedFor(url) : null;
+  if (!media) { window.open(url, "_blank", "noopener"); return; }
+  const frame = document.getElementById("viewerFrame");
+  frame.className = "viewer-frame " + media.ratio;
+  frame.innerHTML = "";
+  let el;
+  if (media.kind === "iframe") {
+    el = document.createElement("iframe");
+    el.src = media.src;
+    el.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen";
+    el.allowFullscreen = true;
+    el.referrerPolicy = "strict-origin-when-cross-origin";
+    el.title = title;
+  } else {
+    el = document.createElement(media.kind); // video | audio
+    el.src = media.src;
+    el.controls = true;
+    el.preload = "metadata";
+  }
+  frame.appendChild(el);
+  document.getElementById("viewerTitle").textContent = title;
+  document.getElementById("viewerExternal").href = url;
+  document.getElementById("viewerOverlay").classList.add("show");
+}
+
+function closeViewer() {
+  document.getElementById("viewerOverlay").classList.remove("show");
+  document.getElementById("viewerFrame").innerHTML = ""; // يوقف الفيديو
+}
+
+function bindViewers(root) {
+  root.querySelectorAll("[data-view]").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openViewer(btn.dataset.view, btn.dataset.title);
+    });
+  });
 }
 
 function clearSession() {
@@ -769,16 +851,19 @@ function renderCurriculum() {
     subject.series.forEach(series => {
       const block = document.createElement("div");
       block.className = "series-block";
-      block.innerHTML = `<div class="series-title">${esc(series.name)}</div>`;
+      const seriesHref = series.url ? safeHref(series.url) : null;
+      const seriesBtn = !seriesHref ? ""
+        : (window.RasokhMedia && RasokhMedia.embedFor(seriesHref))
+          ? `<button class="series-play" data-view="${esc(seriesHref)}" data-title="${esc(series.name)}">▶️ تشغيل السلسلة كاملة</button>`
+          : `<a class="series-play" href="${esc(seriesHref)}" target="_blank" rel="noopener noreferrer">▶️ تشغيل السلسلة كاملة</a>`;
+      block.innerHTML = `<div class="series-head"><div class="series-title">${esc(series.name)}</div>${seriesBtn}</div>`;
 
       series.episodes.forEach(ep => {
         const row = document.createElement("div");
         row.className = "item-row";
         const href = ep.url ? safeHref(ep.url) : null;
         row.innerHTML = `
-          ${href
-            ? `<a class="item-icon link" href="${esc(href)}" target="_blank" rel="noopener noreferrer" title="تشغيل الحلقة">▶️</a>`
-            : `<div class="item-icon" title="لا يوجد رابط لهذه الحلقة بعد">▶️</div>`}
+          ${openerHtml(ep.url, "▶️", ep.title)}
           <div class="item-title">${esc(ep.title)}<span class="meta">${esc(ep.duration || "")}${href ? "" : (ep.duration ? " · " : "") + "لا يوجد رابط بعد"}</span></div>
           <button class="tiny-btn ${ep.listened ? "done" : ""}">${ep.listened ? "✓ تم السماع" : "تم السماع"}</button>
         `;
@@ -789,14 +874,11 @@ function renderCurriculum() {
       series.books.forEach(book => {
         const row = document.createElement("div");
         row.className = "item-row";
-        const href = book.file_url ? safeHref(book.file_url) : null;
         const bookPct = book.total_pages > 0 ? Math.min(100, Math.round((book.current_page / book.total_pages) * 100)) : 0;
         row.innerHTML = `
-          ${href
-            ? `<a class="item-icon link" href="${esc(href)}" target="_blank" rel="noopener noreferrer" title="فتح الكتاب">📖</a>`
-            : `<div class="item-icon" title="لا يوجد رابط لهذا الكتاب بعد">📖</div>`}
+          ${openerHtml(book.file_url, "📖", book.title)}
           <div class="item-title">${esc(book.title)}
-            <span class="meta">صفحة ${book.current_page} من ${book.total_pages}</span>
+            <span class="meta">صفحة ${book.current_page} من ${book.total_pages}${book.file_url ? "" : " · لا يوجد رابط بعد"}</span>
             <div class="book-progress-bar"><div class="book-progress-fill" style="width:${bookPct}%"></div></div>
           </div>
           <input type="number" class="page-input" min="0" max="${book.total_pages}" value="${book.current_page}" aria-label="رقم الصفحة الحالية">
@@ -828,6 +910,7 @@ function renderCurriculum() {
 
     card.appendChild(head);
     card.appendChild(body);
+    bindViewers(card);
     root.appendChild(card);
   });
 }
@@ -1052,6 +1135,14 @@ document.querySelectorAll(".overlay").forEach(ov => {
   ov.addEventListener("click", (e) => {
     if (e.target === ov && ov.id !== "loginOverlay" && ov.id !== "loadingOverlay") ov.classList.remove("show");
   });
+});
+
+document.getElementById("viewerClose").addEventListener("click", closeViewer);
+document.getElementById("viewerOverlay").addEventListener("click", (e) => {
+  if (e.target.id === "viewerOverlay") closeViewer();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && document.getElementById("viewerOverlay").classList.contains("show")) closeViewer();
 });
 
 document.getElementById("btnReport").addEventListener("click", openReport);

@@ -16,7 +16,7 @@ function buildSubjectsForStage(stageId, studentId) {
 
   return stageSubjects.map(subj => {
     const seriesRows = db.prepare(
-      `SELECT id, name FROM series WHERE stage_subject_id = ? ORDER BY order_index ASC`
+      `SELECT id, name, url FROM series WHERE stage_subject_id = ? ORDER BY order_index ASC`
     ).all(subj.stage_subject_id);
 
     const series = seriesRows.map(s => {
@@ -54,7 +54,7 @@ function buildSubjectsForStage(stageId, studentId) {
         return { ...t, last_score: last ? last.score : null, passed: !!everPassed };
       });
 
-      return { id: s.id, name: s.name, episodes, books, tests };
+      return { id: s.id, name: s.name, url: s.url, episodes, books, tests };
     });
 
     return { id: subj.subject_id, name: subj.name, icon: subj.icon, series };

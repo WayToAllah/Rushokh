@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS series (
   id                  INTEGER PRIMARY KEY AUTOINCREMENT,
   stage_subject_id    INTEGER NOT NULL,
   name                TEXT NOT NULL,
+  url                 TEXT,
   order_index         INTEGER NOT NULL DEFAULT 0,
   FOREIGN KEY (stage_subject_id) REFERENCES stage_subject(id) ON DELETE CASCADE
 );

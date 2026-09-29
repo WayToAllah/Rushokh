@@ -16,4 +16,12 @@ db.exec("PRAGMA foreign_keys = ON;");
 const schemaSql = fs.readFileSync(SCHEMA_PATH, "utf8");
 db.exec(schemaSql);
 
+// ترقيات لقواعد البيانات القديمة: إضافة أعمدة جديدة من غير ما نمسح أي بيانات
+function addColumnIfMissing(table, column, definition) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all().map(c => c.name);
+  if (!cols.includes(column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+}
+addColumnIfMissing("series", "url", "TEXT");
+
+db.DB_PATH = DB_PATH;
 module.exports = db;
