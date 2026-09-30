@@ -13,7 +13,7 @@ router.get("/", (req, res) => {
     `SELECT st.id, st.full_name, st.email, st.phone, st.age, st.is_blocked, st.email_verified,
             st.current_stage_id, stg.name AS stage_name
      FROM students st LEFT JOIN stages stg ON stg.id = st.current_stage_id
-     ORDER BY st.created_at DESC`
+     ORDER BY st.created_at DESC, st.id DESC`
   ).all();
   res.json(students);
 });

@@ -7,7 +7,9 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "seed": "node db/seed.js",
-    "create-admin": "node scripts/create-admin.js"
+    "create-admin": "node scripts/create-admin.js",
+    "test": "node --test \"tests/**/*.test.js\"",
+    "test:e2e": "playwright test"
   },
   "engines": {
     "node": ">=22.5.0"
@@ -19,5 +21,10 @@
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^10.0.13"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "mailparser": "^3.9.32",
+    "smtp-server": "^3.19.16"
   }
 }

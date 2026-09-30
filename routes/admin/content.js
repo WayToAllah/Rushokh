@@ -157,6 +157,8 @@ router.post("/stage-subject", (req, res) => {
     ).run(stage_id, subject_id, nextOrder("stage_subject", "stage_id", stage_id));
     res.status(201).json({ id: Number(info.lastInsertRowid) });
   } catch (err) {
+    // الربط مكرر بس هو اللي رسالته "مرتبط بالفعل"، أي خطأ تاني (مرحلة أو قسم مش موجود) بيروح للمعالج العام
+    if (!/UNIQUE constraint failed/.test(err.message)) throw err;
     res.status(409).json({ error: "هذا القسم مرتبط بالفعل بهذه المرحلة." });
   }
 });

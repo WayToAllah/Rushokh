@@ -48,13 +48,25 @@ app.use((err, req, res, next) => {
   if (err.type === "entity.parse.failed") {
     return res.status(400).json({ error: "صيغة البيانات المرسلة غير صحيحة." });
   }
+  if (err.type === "entity.too.large") {
+    return res.status(413).json({ error: "حجم البيانات المرسلة كبير جدًا." });
+  }
+  // عنصر بيشاور على حاجة مش موجودة (مثلاً حلقة لسلسلة اتحذفت): ده غلط في الطلب مش في السيرفر
+  if (/FOREIGN KEY constraint failed/.test(err.message || "")) {
+    return res.status(400).json({ error: "العنصر المرتبط غير موجود، ممكن يكون اتحذف. حدّث الصفحة وحاول تاني." });
+  }
   console.error(err);
   res.status(500).json({ error: "حدث خطأ غير متوقع في الخادم." });
 });
 
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-  console.log(`🚀 خادم رسوخ يعمل على http://localhost:${PORT}`);
-  require("./lib/backup").startAutoBackup();
-  require("./lib/mailer").checkOnStartup();
-});
+// الاختبارات بتستورد app وتشغّله على بورت عشوائي، فالتشغيل الفعلي بس لما الملف ده يتشغّل مباشرة
+module.exports = app;
+
+if (require.main === module) {
+  const PORT = process.env.PORT || 4000;
+  app.listen(PORT, () => {
+    console.log(`🚀 خادم رسوخ يعمل على http://localhost:${PORT}`);
+    require("./lib/backup").startAutoBackup();
+    require("./lib/mailer").checkOnStartup();
+  });
+}
