@@ -12,7 +12,9 @@ where cloudflared >nul 2>nul
 if errorlevel 1 goto nocf
 
 set "DOMAIN="
-set /p DOMAIN=Type your domain without www, for example rusuokh.com: 
+if exist "site-domain.txt" set /p DOMAIN=<site-domain.txt
+if not "%DOMAIN%"=="" echo Domain: %DOMAIN%
+if "%DOMAIN%"=="" set /p DOMAIN=Type your domain without www, for example rusuokh.com: 
 if "%DOMAIN%"=="" goto nodomain
 
 echo.
@@ -21,7 +23,7 @@ if exist "%USERPROFILE%\.cloudflared\cert.pem" (
   echo Already logged in to Cloudflare. Skipping.
 ) else (
   echo A browser page will open. Log in to Cloudflare, click %DOMAIN%, then Authorize.
-  cloudflared tunnel login
+  powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\cf-login.ps1"
   if errorlevel 1 goto fail
 )
 
