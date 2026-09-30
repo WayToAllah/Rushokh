@@ -135,6 +135,37 @@
   .submit-btn:hover{background:var(--teal-900);}
   .submit-btn:disabled{opacity:.6; cursor:not-allowed;}
 
+  /* ===== التبديل بين الدخول وإنشاء حساب ===== */
+  .card[hidden]{display:none;}
+  .switch-divider{
+    display:flex; align-items:center; gap:10px;
+    margin:22px 0 14px;
+    font-size:.78rem; color:var(--ink-soft);
+  }
+  .switch-divider::before, .switch-divider::after{content:""; flex:1; height:1px; background:var(--line);}
+  .secondary-btn{
+    display:block;
+    width:100%;
+    padding:12px;
+    border:1px solid var(--teal-700);
+    border-radius:8px;
+    background:transparent;
+    color:var(--teal-700);
+    font-weight:600;
+    font-size:.92rem;
+    text-align:center;
+    text-decoration:none;
+    transition:background .18s ease, color .18s ease;
+  }
+  .secondary-btn:hover{background:var(--teal-700); color:#fff;}
+  .switch-back{
+    text-align:center;
+    font-size:.82rem;
+    color:var(--ink-soft);
+    margin:16px 0 0;
+  }
+  .switch-back a{color:var(--teal-700); font-weight:600;}
+
   .error-box{
     background:rgba(168,80,58,.1);
     color:var(--terracotta);
@@ -184,10 +215,10 @@
 </div>
 
 <div class="cards-wrap">
-  <!-- بطاقة تسجيل الدخول -->
-  <div class="card">
+  <!-- بطاقة تسجيل الدخول (أول حاجة بتظهر) -->
+  <div class="card" id="loginCard">
     <h2>تسجيل الدخول</h2>
-    <p class="subtitle">لديك حساب بالفعل؟ ادخل من هنا</p>
+    <p class="subtitle">ادخل ببريدك الإلكتروني وكلمة المرور</p>
     <div class="error-box" id="loginError"></div>
     <form id="loginForm">
       <label for="loginEmail">البريد الإلكتروني</label>
@@ -196,10 +227,12 @@
       <input type="password" id="loginPassword" required autocomplete="current-password">
       <button type="submit" class="submit-btn" id="loginBtn">دخول</button>
     </form>
+    <div class="switch-divider">ليس لديك حساب؟</div>
+    <a class="secondary-btn" href="#register">إنشاء حساب جديد</a>
   </div>
 
-  <!-- بطاقة تسجيل طالب جديد -->
-  <div class="card">
+  <!-- بطاقة تسجيل طالب جديد (بتظهر بزرار "إنشاء حساب جديد") -->
+  <div class="card" id="registerCard" hidden>
     <h2>طالب جديد</h2>
     <p class="subtitle">أنشئ حسابك وابدأ رحلتك العلمية</p>
     <div class="error-box" id="registerError"></div>
@@ -225,6 +258,7 @@
       <input type="password" id="regPassword" required minlength="8" autocomplete="new-password">
       <button type="submit" class="submit-btn" id="registerBtn">تسجيل</button>
     </form>
+    <p class="switch-back">لديك حساب بالفعل؟ <a href="#login">تسجيل الدخول</a></p>
   </div>
 </div>
 
@@ -250,6 +284,19 @@ function setLoading(btn, loadingText, normalText) {
   btn.textContent = loadingText;
   return () => { btn.disabled = false; btn.textContent = normalText; };
 }
+
+/* ======================= الدخول أولاً، وزرار لإنشاء حساب ======================= */
+// #register بيعرض إنشاء الحساب، وأي حاجة تانية بتعرض الدخول (وزرار الرجوع في المتصفح بيشتغل)
+function showView() {
+  const register = location.hash === "#register";
+  document.getElementById("loginCard").hidden = register;
+  document.getElementById("registerCard").hidden = !register;
+}
+window.addEventListener("hashchange", () => {
+  showView();
+  document.getElementById(location.hash === "#register" ? "regName" : "loginEmail").focus();
+});
+showView();
 
 /* ======================= تسجيل الدخول (طالب أو مشرف) ======================= */
 // السيرفر بيحدد نوع الحساب، والصفحة بتوجّه كل واحد لصفحته
