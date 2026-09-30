@@ -186,10 +186,12 @@ rasokh-backend/
 ### ١) من جهازك: `start.bat` + Cloudflare Tunnel (الطريقة المستخدمة حاليًا)
 
 - ثبّت cloudflared مرة واحدة: `winget install --id Cloudflare.cloudflared`
-- `start.bat` بيسحب آخر نسخة من GitHub، ويشغّل الموقع، ويفتح شباك فيه رابط عام `https://....trycloudflare.com`.
+- **الدومين (مرة واحدة):** `setup-domain.bat` بياخد الدومين من `site-domain.txt` (دلوقتي `rusuokh.com`)، ويسجّل دخول
+  Cloudflare، ويعمل Tunnel ثابت اسمه `rasokh`، ويربط الدومين و`www` بيه. بيكتب `.tunnel` و`.domain` (مش بيترفعوا على GitHub).
+- `start.bat` بيسحب آخر نسخة من GitHub وبيشغّل `scripts/start-site.cmd`: بيشغّل الموقع، ويفتح شباك الـ Tunnel.
+  لو الدومين متربط بيوصل على `https://rusuokh.com`، وإلا رابط مؤقت `https://....trycloudflare.com` بيتغيّر مع كل تشغيل.
   `update.bat` بيسحب التحديثات والموقع بيعيد تشغيل نفسه.
-- **الرابط بيتغيّر** كل مرة شباك الرابط يتقفل أو الجهاز ينام، فابعته للطلاب من جديد.
-  لرابط ثابت محتاج Named Tunnel بحساب Cloudflare ودومين.
+- على الدومين، السيرفر بيحوّل `www` للعنوان من غير `www`، و`http` لـ `https`.
 - خلّي الجهاز **ما ينامش** طول ما الموقع شغّال (Settings → System → Power).
 - البيانات والنسخ الاحتياطية على الجهاز نفسه (`db/` و `backups/`).
 
