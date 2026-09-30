@@ -2,6 +2,7 @@
 require("dotenv").config();
 const path = require("path");
 const express = require("express");
+const db = require("./db/database");
 
 const { router: authRoutes } = require("./routes/auth");
 const curriculumRoutes = require("./routes/curriculum");
@@ -74,7 +75,16 @@ try {
 app.use(express.json({ limit: "100kb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
-app.get("/api/health", (req, res) => res.json({ ok: true, service: "rasokh-backend" }));
+// فحص الصحة (خدمة المراقبة بتسأله كل كام دقيقة): السيرفر شغّال وقاعدة البيانات بترد
+app.get("/api/health", (req, res) => {
+  try {
+    db.prepare("SELECT 1").get();
+    res.json({ ok: true, service: "rasokh-backend" });
+  } catch (err) {
+    console.error("⚠️  فحص الصحة: قاعدة البيانات مش بترد:", err.message);
+    res.status(503).json({ ok: false, error: "قاعدة البيانات مش بترد." });
+  }
+});
 
 app.use("/api/auth", authRoutes);
 app.use("/api/curriculum", curriculumRoutes);
