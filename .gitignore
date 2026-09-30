@@ -5,3 +5,5 @@ db/.jwt-secret
 backups/
 test-results/
 playwright-report/
+.tunnel
+.domain
