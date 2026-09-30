@@ -20,12 +20,19 @@ const schemaSql = fs.readFileSync(SCHEMA_PATH, "utf8");
 db.exec(schemaSql);
 
 // ترقيات لقواعد البيانات القديمة: إضافة أعمدة جديدة من غير ما نمسح أي بيانات
+// بيرجّع true لو العمود اتضاف دلوقتي
 function addColumnIfMissing(table, column, definition) {
   const cols = db.prepare(`PRAGMA table_info(${table})`).all().map(c => c.name);
-  if (!cols.includes(column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  if (cols.includes(column)) return false;
+  db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  return true;
 }
 addColumnIfMissing("series", "url", "TEXT");
 addColumnIfMissing("books", "order_index", "INTEGER NOT NULL DEFAULT 0");
+// الطلاب اللي سجّلوا قبل تأكيد البريد بيتعتبروا متأكدين، عشان محدش منهم يتقفل برّه
+if (addColumnIfMissing("students", "email_verified", "INTEGER NOT NULL DEFAULT 0")) {
+  db.exec(`UPDATE students SET email_verified = 1`);
+}
 
 db.DB_PATH = DB_PATH;
 module.exports = db;

@@ -118,6 +118,12 @@
     color:var(--ink);
   }
   input:focus{border-color:var(--teal-700);}
+  /* خانة إجبارية اتسابت فاضية أو مكتوبة غلط (بتظهر بعد ما الشخص يجرّب) */
+  input:user-invalid, input.invalid{border-color:var(--terracotta);}
+  .req{color:var(--terracotta); font-weight:700;}
+  .opt{font-size:.72rem; opacity:.75;}
+  .req-note{font-size:.74rem; color:var(--ink-soft); margin:-12px 0 16px;}
+  .code-input{text-align:center; font-size:1.4rem; letter-spacing:.5em; direction:ltr;}
   .row-2{display:flex; gap:12px;}
   .row-2 > div{flex:1;}
 
@@ -158,6 +164,7 @@
     transition:background .18s ease, color .18s ease;
   }
   .secondary-btn:hover{background:var(--teal-700); color:#fff;}
+  .secondary-btn:disabled{opacity:.6; cursor:not-allowed; background:transparent; color:var(--teal-700);}
   .switch-back{
     text-align:center;
     font-size:.82rem;
@@ -220,7 +227,7 @@
     <h2>تسجيل الدخول</h2>
     <p class="subtitle">ادخل ببريدك الإلكتروني وكلمة المرور</p>
     <div class="error-box" id="loginError"></div>
-    <form id="loginForm">
+    <form id="loginForm" novalidate>
       <label for="loginEmail">البريد الإلكتروني</label>
       <input type="email" id="loginEmail" required autocomplete="email">
       <label for="loginPassword">كلمة المرور</label>
@@ -235,30 +242,48 @@
   <div class="card" id="registerCard" hidden>
     <h2>طالب جديد</h2>
     <p class="subtitle">أنشئ حسابك وابدأ رحلتك العلمية</p>
+    <p class="req-note">الخانات اللي عليها <span class="req" aria-hidden="true">*</span> لازم تتملي</p>
     <div class="error-box" id="registerError"></div>
     <div class="success-box" id="registerSuccess"></div>
-    <form id="registerForm">
-      <label for="regName">الاسم الكامل</label>
-      <input type="text" id="regName" required>
-      <label for="regEmail">البريد الإلكتروني</label>
-      <input type="email" id="regEmail" required>
+    <form id="registerForm" novalidate>
+      <label for="regName">الاسم الكامل <span class="req" aria-hidden="true">*</span></label>
+      <input type="text" id="regName" required autocomplete="name">
+      <label for="regEmail">البريد الإلكتروني <span class="req" aria-hidden="true">*</span></label>
+      <input type="email" id="regEmail" required autocomplete="email">
       <div class="row-2">
         <div>
-          <label for="regPhone">رقم الهاتف</label>
-          <input type="tel" id="regPhone">
+          <label for="regPhone">رقم الهاتف <span class="opt">(اختياري)</span></label>
+          <input type="tel" id="regPhone" autocomplete="tel">
         </div>
         <div>
-          <label for="regAge">العمر</label>
+          <label for="regAge">العمر <span class="opt">(اختياري)</span></label>
           <input type="number" id="regAge" min="5" max="100">
         </div>
       </div>
-      <label for="regAddress">العنوان</label>
+      <label for="regAddress">العنوان <span class="opt">(اختياري)</span></label>
       <input type="text" id="regAddress">
-      <label for="regPassword">كلمة المرور (8 أحرف على الأقل)</label>
+      <label for="regPassword">كلمة المرور (8 أحرف على الأقل) <span class="req" aria-hidden="true">*</span></label>
       <input type="password" id="regPassword" required minlength="8" autocomplete="new-password">
       <button type="submit" class="submit-btn" id="registerBtn">تسجيل</button>
     </form>
     <p class="switch-back">لديك حساب بالفعل؟ <a href="#login">تسجيل الدخول</a></p>
+  </div>
+
+  <!-- بطاقة تأكيد البريد (بعد التسجيل، أو لو حد دخل وبريده لسه ما اتأكدش) -->
+  <div class="card" id="verifyCard" hidden>
+    <h2>تأكيد البريد الإلكتروني</h2>
+    <p class="subtitle">بعتنا كود من 6 أرقام على <strong id="verifyEmail" dir="ltr"></strong>.
+      لو مش لاقيه، بص في الـ Spam (الرسائل غير المرغوب فيها).</p>
+    <div class="error-box" id="verifyError"></div>
+    <div class="success-box" id="verifyInfo"></div>
+    <form id="verifyForm" novalidate>
+      <label for="verifyCode">كود التأكيد</label>
+      <input type="text" id="verifyCode" class="code-input" inputmode="numeric" autocomplete="one-time-code"
+             pattern="[0-9]{6}" required>
+      <button type="submit" class="submit-btn" id="verifyBtn">تأكيد</button>
+    </form>
+    <button type="button" class="secondary-btn" id="resendBtn" style="margin-top:12px;">ابعت الكود تاني</button>
+    <p class="switch-back"><a href="#login">رجوع لتسجيل الدخول</a></p>
   </div>
 </div>
 
@@ -274,7 +299,9 @@ async function apiFetch(path, options = {}) {
   let data = {};
   try { data = await res.json(); } catch (e) {}
   if (!res.ok) {
-    throw new Error(data.error || "تعذّر الاتصال بالخادم، تأكد أن الباك إند يعمل على http://localhost:4000");
+    const err = new Error(data.error || "تعذّر الاتصال بالخادم، تأكد أن الباك إند يعمل على http://localhost:4000");
+    err.data = data;
+    throw err;
   }
   return data;
 }
@@ -285,18 +312,77 @@ function setLoading(btn, loadingText, normalText) {
   return () => { btn.disabled = false; btn.textContent = normalText; };
 }
 
-/* ======================= الدخول أولاً، وزرار لإنشاء حساب ======================= */
-// #register بيعرض إنشاء الحساب، وأي حاجة تانية بتعرض الدخول (وزرار الرجوع في المتصفح بيشتغل)
-function showView() {
-  const register = location.hash === "#register";
-  document.getElementById("loginCard").hidden = register;
-  document.getElementById("registerCard").hidden = !register;
+/* ======================= الخانات الناقصة أو الغلط ======================= */
+// رسالة بتصميم الموقع في نفس صندوق الأخطاء، بدل فقاعة المتصفح (الفورمز عليها novalidate)
+function labelOf(input) {
+  const label = document.querySelector(`label[for="${input.id}"]`);
+  return label ? label.childNodes[0].textContent.replace(/\(.*\)/, "").trim() : "";
 }
+function validate(form, errorBox) {
+  const inputs = [...form.querySelectorAll("input")];
+  const bad = inputs.filter(i => !i.checkValidity());
+  inputs.forEach(i => i.classList.toggle("invalid", bad.includes(i)));
+  if (!bad.length) return true;
+
+  const msgs = [];
+  const missing = bad.filter(i => i.validity.valueMissing).map(labelOf);
+  if (missing.length === 1) msgs.push(`املأ خانة "${missing[0]}".`);
+  else if (missing.length) msgs.push(`املأ الخانات دي: ${missing.join("، ")}.`);
+  bad.filter(i => !i.validity.valueMissing).forEach(i => {
+    if (i.type === "email") msgs.push(`${labelOf(i)} مكتوب غلط.`);
+    else if (i.validity.tooShort) msgs.push(`${labelOf(i)} لازم تكون ${i.minLength} أحرف على الأقل.`);
+    else if (i.validity.rangeUnderflow || i.validity.rangeOverflow) msgs.push(`${labelOf(i)} لازم يكون بين ${i.min} و${i.max}.`);
+    else if (i.id === "verifyCode") msgs.push("الكود 6 أرقام.");
+    else msgs.push(`${labelOf(i)} مكتوب غلط.`);
+  });
+  errorBox.textContent = msgs.join(" ");
+  errorBox.style.display = "block";
+  bad[0].focus();
+  return false;
+}
+document.querySelectorAll("form").forEach(f => f.addEventListener("input", e => e.target.classList.remove("invalid")));
+
+/* ======================= الدخول أولاً، وزرار لإنشاء حساب ======================= */
+// #register بيعرض إنشاء الحساب، و#verify بيعرض كود التأكيد (لو فيه بريد مستني)، وأي حاجة تانية بتعرض الدخول.
+// زرار الرجوع في المتصفح بيشتغل.
+let pendingEmail = null;
+try { pendingEmail = sessionStorage.getItem("rasokh_pending_email"); } catch (e) {}
+
+function currentView() {
+  if (location.hash === "#register") return "register";
+  if (location.hash === "#verify" && pendingEmail) return "verify";
+  return "login";
+}
+function showView() {
+  const view = currentView();
+  document.getElementById("loginCard").hidden = view !== "login";
+  document.getElementById("registerCard").hidden = view !== "register";
+  document.getElementById("verifyCard").hidden = view !== "verify";
+  if (view === "verify") document.getElementById("verifyEmail").textContent = pendingEmail;
+}
+const FIRST_FIELD = { login: "loginEmail", register: "regName", verify: "verifyCode" };
 window.addEventListener("hashchange", () => {
   showView();
-  document.getElementById(location.hash === "#register" ? "regName" : "loginEmail").focus();
+  document.getElementById(FIRST_FIELD[currentView()]).focus();
 });
 showView();
+
+// يفتح شاشة كود التأكيد للبريد ده
+function askForCode(email, note) {
+  pendingEmail = email;
+  try { sessionStorage.setItem("rasokh_pending_email", email); } catch (e) {}
+  const info = document.getElementById("verifyInfo");
+  info.textContent = note || "";
+  info.style.display = note ? "block" : "none";
+  document.getElementById("verifyError").style.display = "none";
+  document.getElementById("verifyCode").value = "";
+  if (location.hash === "#verify") {
+    showView();
+    document.getElementById("verifyCode").focus();
+  } else {
+    location.hash = "#verify";
+  }
+}
 
 /* ======================= تسجيل الدخول (طالب أو مشرف) ======================= */
 // السيرفر بيحدد نوع الحساب، والصفحة بتوجّه كل واحد لصفحته
@@ -310,6 +396,7 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
   const password = document.getElementById("loginPassword").value;
   const errorBox = document.getElementById("loginError");
   errorBox.style.display = "none";
+  if (!validate(e.target, errorBox)) return;
   const reset = setLoading(document.getElementById("loginBtn"), "جارٍ الدخول...", "دخول");
 
   try {
@@ -322,9 +409,13 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
     localStorage.setItem("rasokh_role", role);
     goHome(role);
   } catch (err) {
+    reset();
+    if (err.data && err.data.needs_verification) {
+      askForCode(err.data.email, err.message);
+      return;
+    }
     errorBox.textContent = err.message;
     errorBox.style.display = "block";
-    reset();
   }
 });
 
@@ -335,6 +426,7 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
   const successBox = document.getElementById("registerSuccess");
   errorBox.style.display = "none";
   successBox.style.display = "none";
+  if (!validate(e.target, errorBox)) return;
   const reset = setLoading(document.getElementById("registerBtn"), "جارٍ التسجيل...", "تسجيل");
 
   const payload = {
@@ -351,6 +443,14 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
       method: "POST",
       body: JSON.stringify(payload),
     });
+    // تأكيد البريد شغّال: الحساب اتعمل واتبعت كود، والدخول بعد كتابة الكود
+    if (data.needs_verification) {
+      reset();
+      document.getElementById("registerForm").reset();
+      askForCode(data.email);
+      resendCooldown(60);
+      return;
+    }
     localStorage.setItem("rasokh_token", data.token);
     localStorage.setItem("rasokh_role", "student");
     successBox.textContent = "تم إنشاء الحساب بنجاح، جارٍ تحويلك إلى صفحتك...";
@@ -360,6 +460,71 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
     errorBox.textContent = err.message;
     errorBox.style.display = "block";
     reset();
+  }
+});
+
+/* ======================= تأكيد البريد بالكود ======================= */
+const codeInput = document.getElementById("verifyCode");
+codeInput.addEventListener("input", () => { codeInput.value = codeInput.value.replace(/\D/g, "").slice(0, 6); });
+
+document.getElementById("verifyForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errorBox = document.getElementById("verifyError");
+  errorBox.style.display = "none";
+  document.getElementById("verifyInfo").style.display = "none";
+  if (!validate(e.target, errorBox)) return;
+  const reset = setLoading(document.getElementById("verifyBtn"), "جارٍ التأكيد...", "تأكيد");
+  try {
+    const data = await apiFetch("/auth/verify-email", {
+      method: "POST",
+      body: JSON.stringify({ email: pendingEmail, code: codeInput.value }),
+    });
+    try { sessionStorage.removeItem("rasokh_pending_email"); } catch (e) {}
+    localStorage.setItem("rasokh_token", data.token);
+    localStorage.setItem("rasokh_role", "student");
+    goHome("student");
+  } catch (err) {
+    errorBox.textContent = err.message;
+    errorBox.style.display = "block";
+    reset();
+  }
+});
+
+// "ابعت الكود تاني": لازم دقيقة بين كل كود والتاني، والزرار بيعد تنازلي
+let resendTimer = null;
+function resendCooldown(seconds) {
+  const btn = document.getElementById("resendBtn");
+  clearInterval(resendTimer);
+  let left = seconds;
+  const tick = () => {
+    if (left <= 0) {
+      clearInterval(resendTimer);
+      btn.disabled = false;
+      btn.textContent = "ابعت الكود تاني";
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = `ابعت الكود تاني (${left})`;
+    left--;
+  };
+  tick();
+  resendTimer = setInterval(tick, 1000);
+}
+
+document.getElementById("resendBtn").addEventListener("click", async () => {
+  const errorBox = document.getElementById("verifyError");
+  const info = document.getElementById("verifyInfo");
+  errorBox.style.display = "none";
+  info.style.display = "none";
+  try {
+    await apiFetch("/auth/resend-code", { method: "POST", body: JSON.stringify({ email: pendingEmail }) });
+    info.textContent = "بعتنا كود جديد على بريدك.";
+    info.style.display = "block";
+    resendCooldown(60);
+  } catch (err) {
+    errorBox.textContent = err.message;
+    errorBox.style.display = "block";
+    if (err.data && err.data.wait) resendCooldown(err.data.wait);
   }
 });
 

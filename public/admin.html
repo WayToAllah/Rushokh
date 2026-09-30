@@ -101,6 +101,7 @@
   .badge{padding:3px 10px; border-radius:999px; font-size:.72rem; font-weight:600;}
   .badge.active{background:rgba(124,150,131,.2); color:var(--teal-900);}
   .badge.blocked{background:rgba(168,80,58,.15); color:var(--terracotta);}
+  .badge.pending{background:rgba(185,146,79,.18); color:#7A5C24;}
 
   /* ===== Modal ===== */
   .overlay{position:fixed; inset:0; background:rgba(14,20,18,.55); display:none; align-items:flex-start; justify-content:center; padding:40px 16px; overflow-y:auto; z-index:50;}
@@ -885,7 +886,8 @@ async function loadStudents() {
               <td dir="ltr" style="text-align:right;">${esc(s.email)}</td>
               <td dir="ltr" style="text-align:right;">${esc(s.phone || "—")}</td>
               <td><select class="stage-select" data-stage-for="${esc(s.id)}" aria-label="مرحلة الطالب">${stageOpts(s.current_stage_id)}</select></td>
-              <td><span class="badge ${s.is_blocked ? "blocked" : "active"}">${s.is_blocked ? "موقوف" : "فعّال"}</span></td>
+              <td><span class="badge ${s.is_blocked ? "blocked" : "active"}">${s.is_blocked ? "موقوف" : "فعّال"}</span>
+                ${s.email_verified ? "" : `<span class="badge pending" title="الطالب لسه ما كتبش كود التأكيد اللي اتبعت على بريده، ومش هيقدر يدخل قبلها">البريد مش متأكد</span>`}</td>
               <td style="display:flex; gap:6px; flex-wrap:wrap;">
                 <button class="btn small outline" data-report="${esc(s.id)}">📊 تقرير</button>
                 <button class="btn small outline" data-reset-pw="${esc(s.id)}" data-name="${esc(s.full_name)}" title="كلمة مرور جديدة">🔑</button>

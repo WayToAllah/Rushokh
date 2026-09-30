@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS students (
   password_hash   TEXT NOT NULL,
   current_stage_id INTEGER,
   is_blocked      INTEGER NOT NULL DEFAULT 0,
+  email_verified  INTEGER NOT NULL DEFAULT 0,
   created_at      TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (current_stage_id) REFERENCES stages(id) ON DELETE SET NULL
 );
@@ -143,6 +144,16 @@ CREATE TABLE IF NOT EXISTS student_stage_completions (
   FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
   FOREIGN KEY (stage_id) REFERENCES stages(id) ON DELETE CASCADE,
   UNIQUE(student_id, stage_id)
+);
+
+-- كود تأكيد البريد المستني (واحد لكل طالب). الوقت بالمللي ثانية.
+CREATE TABLE IF NOT EXISTS email_verifications (
+  student_id      INTEGER PRIMARY KEY,
+  code_hash       TEXT NOT NULL,
+  expires_at      INTEGER NOT NULL,
+  attempts        INTEGER NOT NULL DEFAULT 0,
+  sent_at         INTEGER NOT NULL,
+  FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_stage_subject_stage ON stage_subject(stage_id);

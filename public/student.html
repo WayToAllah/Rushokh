@@ -631,7 +631,7 @@ function clearSession() {
 }
 
 class ApiError extends Error {
-  constructor(message, status) { super(message); this.status = status; }
+  constructor(message, status, data) { super(message); this.status = status; this.data = data || {}; }
 }
 
 async function apiFetch(path, options = {}) {
@@ -650,7 +650,7 @@ async function apiFetch(path, options = {}) {
   }
   let data = {};
   try { data = await res.json(); } catch (e) {}
-  if (!res.ok) throw new ApiError(data.error || "حدث خطأ غير متوقع.", res.status);
+  if (!res.ok) throw new ApiError(data.error || "حدث خطأ غير متوقع.", res.status, data);
   return data;
 }
 
@@ -713,6 +713,12 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
     viewStageId = null;
     await loadCurriculum();
   } catch (err) {
+    // البريد لسه ما اتأكدش: شاشة الكود في الصفحة الرئيسية
+    if (err.data && err.data.needs_verification) {
+      try { sessionStorage.setItem("rasokh_pending_email", err.data.email); } catch (e) {}
+      window.location.href = "index.html#verify";
+      return;
+    }
     errorBox.textContent = err.message;
     errorBox.style.display = "block";
   } finally {

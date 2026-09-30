@@ -56,4 +56,5 @@ const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`🚀 خادم رسوخ يعمل على http://localhost:${PORT}`);
   require("./lib/backup").startAutoBackup();
+  require("./lib/mailer").checkOnStartup();
 });
