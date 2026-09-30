@@ -17,6 +17,18 @@ const adminReportRoutes = require("./routes/admin/reports");
 const app = express();
 app.disable("x-powered-by");
 
+// على الدومين: www.rusuokh.com بيتحوّل لـ rusuokh.com (عشان الدخول يبقى على عنوان واحد)، وhttp بيتحوّل لـ https.
+// http بيتعرف من x-forwarded-proto اللي Cloudflare بيبعته، فـ localhost والشبكة الداخلية مش بيتأثروا.
+app.use((req, res, next) => {
+  const host = String(req.headers.host || "");
+  const insecure = !!req.headers["cf-connecting-ip"] && req.headers["x-forwarded-proto"] === "http";
+  const www = /^www\./i.test(host);
+  if (!insecure && !www) return next();
+  // 308 للطلبات اللي فيها بيانات (POST...) عشان المتصفح يعيدها زي ما هي
+  const status = req.method === "GET" || req.method === "HEAD" ? 301 : 308;
+  res.redirect(status, `https://${host.replace(/^www\./i, "")}${req.originalUrl}`);
+});
+
 // سياسة المحتوى (CSP): المتصفح مايشغّلش ولا يحمّل غير اللي هنا.
 // - السكريبتات من الموقع نفسه بس (الصفحات فيها كود جوّاها، فـ 'unsafe-inline' لسه لازم لحد ما يتنقل لملفات)
 // - الخطوط من Google Fonts، والطلبات (fetch) للموقع نفسه بس، فأي كود دخيل مايقدرش يبعت بيانات لبرّه

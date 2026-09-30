@@ -43,6 +43,38 @@ describe("سياسة المحتوى وHTTPS", () => {
   });
 });
 
+describe("التحويل على الدومين", () => {
+  const http = require("http");
+  const req = (method, path, headers) => new Promise((resolve, reject) => {
+    const r = http.request(app.base + path, { method, headers }, res => { res.resume(); res.on("end", () => resolve(res)); });
+    r.on("error", reject);
+    r.end();
+  });
+
+  it("www بيتحوّل للدومين من غير www، بنفس الصفحة والـ query", async () => {
+    const res = await req("GET", "/student.html?x=1", { host: "www.rusuokh.com", "cf-connecting-ip": "1.2.3.4", "x-forwarded-proto": "https" });
+    assert.equal(res.statusCode, 301);
+    assert.equal(res.headers.location, "https://rusuokh.com/student.html?x=1");
+  });
+
+  it("زيارة http عن طريق Cloudflare بتتحوّل لـ https، والطلب اللي فيه بيانات بـ 308", async () => {
+    const get = await req("GET", "/", { host: "rusuokh.com", "cf-connecting-ip": "1.2.3.4", "x-forwarded-proto": "http" });
+    assert.equal(get.statusCode, 301);
+    assert.equal(get.headers.location, "https://rusuokh.com/");
+    const post = await req("POST", "/api/auth/login", { host: "rusuokh.com", "cf-connecting-ip": "1.2.3.4", "x-forwarded-proto": "http" });
+    assert.equal(post.statusCode, 308);
+  });
+
+  it("زيارة https عن طريق Cloudflare، وlocalhost، مابيتحوّلوش", async () => {
+    const https = await req("GET", "/", { host: "rusuokh.com", "cf-connecting-ip": "1.2.3.4", "x-forwarded-proto": "https" });
+    assert.equal(https.statusCode, 200);
+    const local = await req("GET", "/", {});
+    assert.equal(local.statusCode, 200);
+    const lan = await req("GET", "/", { "x-forwarded-proto": "http" });
+    assert.equal(lan.statusCode, 200, "من غير Cloudflare مفيش تحويل");
+  });
+});
+
 describe("ضغط الردود", () => {
   // بنستخدم http مباشرة عشان fetch بيفك الضغط لوحده ومش بيوضّح الحجم الحقيقي
   const http = require("http");
