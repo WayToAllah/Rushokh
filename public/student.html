@@ -545,6 +545,7 @@
 
 <script src="media.js"></script>
 <script src="password-eye.js"></script>
+<script src="dialog.js"></script>
 
 <script>
 /* ============================================================
@@ -720,8 +721,8 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
   }
 });
 
-document.getElementById("btnLogout").addEventListener("click", () => {
-  if (!confirm("هل تريد تسجيل الخروج؟")) return;
+document.getElementById("btnLogout").addEventListener("click", async () => {
+  if (!(await RasokhDialog.confirm("هل تريد تسجيل الخروج؟", { title: "تسجيل الخروج", okText: "خروج" }))) return;
   clearSession();
   window.location.href = "index.html";
 });

@@ -364,6 +364,7 @@
 </div>
 
 <script src="password-eye.js"></script>
+<script src="dialog.js"></script>
 <script>
 const API_BASE = "/api"; // نسبي: يعمل محليًا وبعد النشر بدون تعديل
 
@@ -433,8 +434,8 @@ function showMsg(id, text, ok) {
   el.className = "msg " + (ok ? "ok" : "err");
 }
 
-document.getElementById("btnLogout").addEventListener("click", () => {
-  if (!confirm("هل تريد تسجيل الخروج؟")) return;
+document.getElementById("btnLogout").addEventListener("click", async () => {
+  if (!(await RasokhDialog.confirm("هل تريد تسجيل الخروج؟", { title: "تسجيل الخروج", okText: "خروج" }))) return;
   logoutTo("index.html");
 });
 
@@ -779,16 +780,17 @@ function renderTree(tree) {
       try {
         await apiFetch("/admin/content/reorder", { method: "POST", body: JSON.stringify({ kind: btn.dataset.kind, ids }) });
         await refreshAll();
-      } catch (err) { alert(err.message); await refreshAll(); }
+      } catch (err) { RasokhDialog.alert(err.message); await refreshAll(); }
     });
   });
   el.querySelectorAll("[data-del]").forEach(btn => {
     btn.addEventListener("click", async () => {
-      if (!confirm("متأكد من الحذف؟ سيُحذف كل ما بداخل هذا العنصر، ومعه تقدم الطلاب فيه.")) return;
+      if (!(await RasokhDialog.confirm("سيُحذف كل ما بداخل هذا العنصر، ومعه تقدم الطلاب فيه.",
+        { title: "متأكد من الحذف؟", okText: "حذف", danger: true }))) return;
       try {
         await apiFetch(endpointMap[btn.dataset.del] + btn.dataset.id, { method: "DELETE" });
         await refreshAll();
-      } catch (err) { alert(err.message); }
+      } catch (err) { RasokhDialog.alert(err.message); }
     });
   });
 }
@@ -849,16 +851,18 @@ function renderTestsList(tests) {
   });
   el.querySelectorAll("[data-del-test]").forEach(btn => {
     btn.addEventListener("click", async () => {
-      if (!confirm("حذف الاختبار بكل أسئلته ونتائج الطلاب فيه؟")) return;
+      if (!(await RasokhDialog.confirm("الاختبار هيتحذف بكل أسئلته ونتائج الطلاب فيه.",
+        { title: "حذف الاختبار", okText: "حذف", danger: true }))) return;
       try { await apiFetch("/admin/tests/" + btn.dataset.delTest, { method: "DELETE" }); await refreshAll(); }
-      catch (err) { alert(err.message); }
+      catch (err) { RasokhDialog.alert(err.message); }
     });
   });
   el.querySelectorAll("[data-del-question]").forEach(btn => {
     btn.addEventListener("click", async () => {
-      if (!confirm("حذف السؤال؟")) return;
+      if (!(await RasokhDialog.confirm("السؤال وخياراته هيتحذفوا.",
+        { title: "حذف السؤال", okText: "حذف", danger: true }))) return;
       try { await apiFetch("/admin/tests/questions/" + btn.dataset.delQuestion, { method: "DELETE" }); await refreshAll(); }
-      catch (err) { alert(err.message); }
+      catch (err) { RasokhDialog.alert(err.message); }
     });
   });
 }
@@ -911,7 +915,9 @@ async function loadStudents() {
       const original = sel.value;
       sel.addEventListener("change", async () => {
         const name = sel.options[sel.selectedIndex].text;
-        if (!confirm(`نقل الطالب يدويًا لمرحلة ${name}؟`)) { sel.value = original; return; }
+        if (!(await RasokhDialog.confirm(`نقل الطالب يدويًا لمرحلة ${name}؟`, { title: "نقل الطالب", okText: "نقل" }))) {
+          sel.value = original; return;
+        }
         const move = reset => apiFetch(`/admin/students/${sel.dataset.stageFor}/stage`, {
           method: "PATCH", body: JSON.stringify({ stage_id: parseInt(sel.value, 10), reset }),
         });
@@ -921,11 +927,12 @@ async function loadStudents() {
           } catch (err) {
             // الطالب خلّص المرحلة دي: الرجوع ليها معناه إنه يعيدها، والسيرفر عايز تأكيد قبل ما يمسح تقدمه
             if (!(err.data && err.data.needs_reset)) throw err;
-            if (!confirm(`⚠️ ${err.message}\n\nمتأكد إنه يعيدها من الأول؟`)) { sel.value = original; return; }
+            if (!(await RasokhDialog.confirm(`${err.message}\n\nمتأكد إنه يعيدها من الأول؟`,
+              { title: "إعادة المرحلة", okText: "يعيدها من الأول", danger: true }))) { sel.value = original; return; }
             await move(true);
           }
           await loadStudents();
-        } catch (err) { alert(err.message); sel.value = original; }
+        } catch (err) { RasokhDialog.alert(err.message); sel.value = original; }
       });
     });
     wrap.querySelectorAll("[data-block]").forEach(btn => {
@@ -936,14 +943,15 @@ async function loadStudents() {
             method: "PATCH", body: JSON.stringify({ is_blocked: !nowBlocked }),
           });
           await loadStudents();
-        } catch (err) { alert(err.message); }
+        } catch (err) { RasokhDialog.alert(err.message); }
       });
     });
     wrap.querySelectorAll("[data-delstudent]").forEach(btn => {
       btn.addEventListener("click", async () => {
-        if (!confirm("حذف هذا الطالب نهائيًا مع كل تقدمه؟")) return;
+        if (!(await RasokhDialog.confirm("الطالب هيتحذف نهائيًا مع كل تقدمه، ومش هيقدر يدخل تاني.",
+          { title: "حذف الطالب", okText: "حذف", danger: true }))) return;
         try { await apiFetch("/admin/students/" + btn.dataset.delstudent, { method: "DELETE" }); await loadStudents(); }
-        catch (err) { alert(err.message); }
+        catch (err) { RasokhDialog.alert(err.message); }
       });
     });
   } catch (err) {
@@ -1002,7 +1010,7 @@ document.getElementById("btnExportExcel").addEventListener("click", async (e) =>
     a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 10000);
   } catch (err) {
-    alert(err.message);
+    RasokhDialog.alert(err.message);
   } finally {
     btn.disabled = false;
     btn.textContent = label;
@@ -1024,9 +1032,10 @@ async function loadAccount() {
         ? `<p class="msg err" style="margin-top:10px;">حساب المشرف التجريبي admin@rasokh.test لسه موجود. أضف مشرف بحسابك الحقيقي، وادخل بيه، واحذف التجريبي.</p>` : ""}`;
     list.querySelectorAll("[data-del-admin]").forEach(btn => {
       btn.addEventListener("click", async () => {
-        if (!confirm("حذف هذا المشرف؟")) return;
+        if (!(await RasokhDialog.confirm("الحساب ده مش هيقدر يدخل لوحة المشرف تاني.",
+          { title: "حذف المشرف", okText: "حذف", danger: true }))) return;
         try { await apiFetch("/admin/account/admins/" + btn.dataset.delAdmin, { method: "DELETE" }); await loadAccount(); }
-        catch (err) { alert(err.message); }
+        catch (err) { RasokhDialog.alert(err.message); }
       });
     });
   } catch (err) {
