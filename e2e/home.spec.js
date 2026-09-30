@@ -72,6 +72,28 @@ test.describe("الصفحة الرئيسية", () => {
     await expect(page).toHaveURL(/\/(index\.html)?(#.*)?$/);
   });
 
+  test("رابط نسيت كلمة المرور بيفتح شاشة البريد، ومن غير إعدادات إيميل بيقول كلّم المشرف", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("link", { name: "نسيت كلمة المرور؟" }).click();
+    await expect(page).toHaveURL(/#forgot$/);
+    await expect(page.locator("#forgotCard")).toBeVisible();
+    await expect(page.locator("#forgotEmail")).toBeFocused();
+    await page.getByRole("button", { name: "ابعت الكود" }).click();
+    await expect(page.locator("#forgotError")).toContainText("البريد الإلكتروني");
+    await page.locator("#forgotEmail").fill("ahmed@rasokh.test");
+    await page.getByRole("button", { name: "ابعت الكود" }).click();
+    await expect(page.locator("#forgotError")).toContainText("المشرف");
+    await expect(page.locator("#resetCard")).toBeHidden();
+    await page.getByRole("link", { name: "رجوع لتسجيل الدخول" }).last().click();
+    await expect(page.locator("#loginCard")).toBeVisible();
+  });
+
+  test("فتح #reset من غير ما يطلب كود بيرجّع لشاشة الدخول", async ({ page }) => {
+    await page.goto("/#reset");
+    await expect(page.locator("#loginCard")).toBeVisible();
+    await expect(page.locator("#resetCard")).toBeHidden();
+  });
+
   test("زرار العين بيظهر كلمة المرور ويخفيها", async ({ page }) => {
     await page.goto("/");
     const pw = page.locator("#loginPassword");

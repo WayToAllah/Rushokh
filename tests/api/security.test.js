@@ -19,6 +19,80 @@ describe("ترويسات الأمان", () => {
   });
 });
 
+describe("سياسة المحتوى وHTTPS", () => {
+  it("CSP موجودة: سكريبتات وطلبات من الموقع بس، والموقع مايتفتحش جوه موقع تاني", async () => {
+    const csp = (await fetch(app.base + "/")).headers.get("content-security-policy");
+    assert.ok(csp, "مفيش CSP");
+    for (const part of ["default-src 'self'", "connect-src 'self'", "object-src 'none'", "frame-ancestors 'none'", "base-uri 'self'"]) {
+      assert.ok(csp.includes(part), `ناقص: ${part}`);
+    }
+    assert.match(csp, /font-src[^;]*fonts\.gstatic\.com/);
+    assert.match(csp, /frame-src[^;]*https:/, "الفيديوهات المتضمّنة لازم تشتغل");
+  });
+
+  it("Permissions-Policy بيقفل الكاميرا والمايك والموقع الجغرافي", async () => {
+    const pp = (await fetch(app.base + "/")).headers.get("permissions-policy");
+    for (const f of ["camera=()", "microphone=()", "geolocation=()"]) assert.ok(pp.includes(f), f);
+  });
+
+  it("HSTS بيتبعت بس لما الزيارة HTTPS (عشان localhost يفضل شغّال)", async () => {
+    const plain = await fetch(app.base + "/");
+    assert.equal(plain.headers.get("strict-transport-security"), null);
+    const viaHttps = await fetch(app.base + "/", { headers: { "x-forwarded-proto": "https" } });
+    assert.match(viaHttps.headers.get("strict-transport-security"), /max-age=\d{7,}/);
+  });
+});
+
+describe("ضغط الردود", () => {
+  // بنستخدم http مباشرة عشان fetch بيفك الضغط لوحده ومش بيوضّح الحجم الحقيقي
+  const http = require("http");
+  const rawGet = (path, headers = {}) => new Promise((resolve, reject) => {
+    http.get(app.base + path, { headers }, res => {
+      const chunks = [];
+      res.on("data", c => chunks.push(c));
+      res.on("end", () => resolve({ status: res.statusCode, headers: res.headers, size: Buffer.concat(chunks).length }));
+    }).on("error", reject);
+  });
+
+  it("الصفحات والـ API الكبيرة بتتبعت مضغوطة وحجمها بيقل كتير", async () => {
+    const plain = await rawGet("/student.html");
+    const gz = await rawGet("/student.html", { "Accept-Encoding": "gzip" });
+    assert.equal(gz.headers["content-encoding"], "gzip");
+    assert.ok(gz.size < plain.size / 3, `${gz.size} مش أصغر كفاية من ${plain.size}`);
+
+    const token = await app.adminToken();
+    const tree = await rawGet("/api/admin/content/tree", { "Accept-Encoding": "gzip", Authorization: "Bearer " + token, "cf-connecting-ip": "10.3.3.3" });
+    assert.equal(tree.status, 200);
+    assert.equal(tree.headers["content-encoding"], "gzip");
+  });
+
+  it("المتصفح اللي مابيدعمش الضغط بياخد الرد عادي", async () => {
+    const r = await rawGet("/student.html", { "Accept-Encoding": "identity" });
+    assert.equal(r.headers["content-encoding"], undefined);
+    assert.equal(r.status, 200);
+  });
+});
+
+describe("صفحة 404", () => {
+  it("أي رابط مش موجود بيرجّع صفحة عربي بتصميم الموقع وفيها رابط للرئيسية", async () => {
+    for (const path of ["/nope", "/some/deep/path.html", "/admin"]) {
+      const res = await fetch(app.base + path);
+      assert.equal(res.status, 404, path);
+      assert.match(res.headers.get("content-type"), /text\/html/);
+      const html = await res.text();
+      assert.match(html, /الصفحة دي مش موجودة/);
+      assert.match(html, /href="\/"/);
+      assert.doesNotMatch(html, /Cannot GET/);
+    }
+  });
+
+  it("مسارات الـ API المش موجودة لسه بترجّع JSON", async () => {
+    const r = await app.call("GET", "/nothing");
+    assert.equal(r.status, 404);
+    assert.equal(typeof r.data, "object");
+  });
+});
+
 describe("طلبات غلط", () => {
   it("مسار API مش موجود بيرجّع 404 بالعربي", async () => {
     const r = await app.call("GET", "/nothing-here");

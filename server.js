@@ -17,13 +17,47 @@ const adminReportRoutes = require("./routes/admin/reports");
 const app = express();
 app.disable("x-powered-by");
 
-// ترويسات أمان أساسية
+// سياسة المحتوى (CSP): المتصفح مايشغّلش ولا يحمّل غير اللي هنا.
+// - السكريبتات من الموقع نفسه بس (الصفحات فيها كود جوّاها، فـ 'unsafe-inline' لسه لازم لحد ما يتنقل لملفات)
+// - الخطوط من Google Fonts، والطلبات (fetch) للموقع نفسه بس، فأي كود دخيل مايقدرش يبعت بيانات لبرّه
+// - الفيديو والكتب المعروضة جوه الموقع (يوتيوب، Drive، PDF، MP3...) من أي رابط https
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com",
+  "img-src 'self' data: https:",
+  "media-src 'self' https:",
+  "frame-src 'self' https:",
+  "connect-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join("; ");
+
+// ترويسات الأمان
 app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Content-Security-Policy", CSP);
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()");
+  // HSTS: المتصفح يفتح الموقع بـ HTTPS دايمًا. بتتبعت بس لما الزيارة نفسها HTTPS
+  // (Cloudflare بيبلّغ بـ x-forwarded-proto)، عشان http://localhost يفضل شغّال.
+  if (req.secure || req.headers["x-forwarded-proto"] === "https") {
+    res.setHeader("Strict-Transport-Security", "max-age=15552000");
+  }
   next();
 });
+
+// ضغط الردود (gzip): الصفحات وبيانات المنهج بتصغر حوالي 80%، وده فرق كبير على نت الموبايل.
+// المكتبة بتتحمّل لو موجودة، عشان الموقع يقوم عادي حتى لو لسه بتتسطّب أثناء التحديث.
+try {
+  app.use(require("compression")());
+} catch (e) {
+  console.warn("⚠️  مكتبة الضغط مش متسطّبة لسه، الموقع شغّال من غير ضغط. شغّل npm install وبعدين شغّل الموقع تاني.");
+}
 
 app.use(express.json({ limit: "100kb" }));
 app.use(express.static(path.join(__dirname, "public")));
@@ -42,6 +76,9 @@ app.use("/api/admin/account", adminAccountRoutes);
 app.use("/api/admin/reports", adminReportRoutes);
 
 app.use("/api", (req, res) => res.status(404).json({ error: "المسار غير موجود." }));
+
+// أي رابط تاني مش موجود: صفحة "مش موجودة" بالعربي بتصميم الموقع
+app.use((req, res) => res.status(404).sendFile(path.join(__dirname, "public", "404.html")));
 
 // معالجة الأخطاء العامة
 app.use((err, req, res, next) => {

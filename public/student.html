@@ -493,15 +493,16 @@
     <h2>تسجيل الدخول</h2>
     <div id="loginError" style="color:var(--terracotta); font-size:.85rem; margin-bottom:10px; display:none;"></div>
     <form id="loginForm">
-      <label style="font-size:.8rem; color:var(--ink-soft);">البريد الإلكتروني</label><br>
+      <label for="loginEmail" style="font-size:.8rem; color:var(--ink-soft);">البريد الإلكتروني</label><br>
       <input type="email" id="loginEmail" required
         style="width:100%; padding:10px; margin:6px 0 14px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:.9rem;">
-      <label style="font-size:.8rem; color:var(--ink-soft);">كلمة المرور</label><br>
+      <label for="loginPassword" style="font-size:.8rem; color:var(--ink-soft);">كلمة المرور</label><br>
       <input type="password" id="loginPassword" required
         style="width:100%; padding:10px; margin:6px 0 18px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:.9rem;">
       <button type="submit" class="tiny-btn" id="loginSubmitBtn" style="width:100%; padding:12px; font-size:.9rem;">دخول</button>
     </form>
-    <p style="font-size:.78rem; color:var(--ink-soft); margin-top:14px;">
+    <p style="font-size:.78rem; color:var(--ink-soft); margin-top:14px; line-height:2;">
+      <a href="index.html#forgot">نسيت كلمة المرور؟</a><br>
       ليس لديك حساب؟ <a href="index.html#register">أنشئ حساب جديد</a>
     </p>
   </div>
@@ -529,7 +530,7 @@
       <input class="pw-input" type="password" id="pwNew" required minlength="8" autocomplete="new-password">
       <button type="submit" class="tiny-btn" style="width:100%; padding:12px; font-size:.9rem;">حفظ كلمة المرور</button>
     </form>
-    <p style="font-size:.75rem; color:var(--ink-soft); margin-top:12px;">نسيت كلمة المرور الحالية؟ اطلب من المشرف يحطلك كلمة مرور جديدة.</p>
+    <p style="font-size:.75rem; color:var(--ink-soft); margin-top:12px;">نسيت كلمة المرور الحالية؟ اخرج واستخدم "نسيت كلمة المرور" في صفحة الدخول، أو اطلب من المشرف يحطلك كلمة مرور جديدة.</p>
   </div>
 </div>
 
@@ -546,6 +547,7 @@
 <script src="media.js"></script>
 <script src="password-eye.js"></script>
 <script src="dialog.js"></script>
+<script src="forms.js"></script>
 
 <script>
 /* ============================================================
@@ -558,6 +560,19 @@ try { authToken = localStorage.getItem("rasokh_token"); } catch (e) {}
 let curriculumData = null; // { student_name, stages: [...] }
 let viewStageId = null;    // المرحلة المعروضة حاليًا (الحالية افتراضيًا، أو مرحلة مكتملة اختارها الطالب)
 const openSubjects = new Set(); // الأقسام المفتوحة، عشان ما تتقفلش لما الصفحة تتحدث
+
+/* ======================= الخانات الناقصة أو الغلط ======================= */
+// رسالة بتصميم الموقع بدل فقاعة المتصفح (public/forms.js)
+RasokhForms.guard(document.getElementById("loginForm"), message => {
+  const box = document.getElementById("loginError");
+  box.textContent = message;
+  box.style.display = "block";
+});
+RasokhForms.guard(document.getElementById("passwordForm"), message => {
+  const box = document.getElementById("pwMsg");
+  box.textContent = message;
+  box.className = "pw-msg err";
+});
 
 /* ======================= أدوات الأمان ======================= */
 // أي نص جاي من السيرفر (أسماء، عناوين، أسئلة...) لازم يعدّي على esc قبل ما يتحط في HTML
@@ -905,9 +920,10 @@ function renderCurriculum() {
         row.innerHTML = `
           ${openerHtml(ep.url, "▶️", ep.title)}
           <div class="item-title">${esc(ep.title)}<span class="meta">${esc(ep.duration || "")}${href ? "" : (ep.duration ? " · " : "") + "لا يوجد رابط بعد"}</span></div>
-          <button class="tiny-btn ${ep.listened ? "done" : ""}">${ep.listened ? "✓ تم السماع" : "تم السماع"}</button>
+          <button class="tiny-btn ${ep.listened ? "done" : ""}" aria-pressed="${ep.listened ? "true" : "false"}"
+            title="${ep.listened ? "دوس تاني لو عايز تلغي إنها اتسمعت" : "دوس هنا بعد ما تسمع الحلقة"}">${ep.listened ? "✓ اتسمعت" : "علّمتها مسموعة"}</button>
         `;
-        row.querySelector("button").addEventListener("click", () => toggleEpisode(ep));
+        row.querySelector(".tiny-btn").addEventListener("click", () => toggleEpisode(ep));
         block.appendChild(row);
       });
 
@@ -924,7 +940,7 @@ function renderCurriculum() {
           <input type="number" class="page-input" min="0" max="${book.total_pages}" value="${book.current_page}" aria-label="رقم الصفحة الحالية">
           <button class="tiny-btn outline">تحديث</button>
         `;
-        row.querySelector("button").addEventListener("click", () => {
+        row.querySelector(".tiny-btn").addEventListener("click", () => {
           updateBookPage(book, row.querySelector("input").value);
         });
         block.appendChild(row);

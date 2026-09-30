@@ -6,7 +6,7 @@ const { signToken } = require("../middleware/auth");
 const { clientIp, createLimiter } = require("../lib/rate-limit");
 const sp = require("../lib/stage-progress");
 const mailer = require("../lib/mailer");
-const ev = require("../lib/email-verification");
+const { verification, passwordReset, codeError } = require("../lib/email-codes");
 
 const router = express.Router();
 
@@ -22,6 +22,10 @@ const perIp = createLimiter({ windowMs: 60 * 1000, max: 20 });
 const registrations = createLimiter({ windowMs: 60 * 60 * 1000, max: 5 });
 // 6 أكواد تأكيد لنفس البريد في الساعة (غير حد الدقيقة بين كل كود والتاني)
 const codeSends = createLimiter({ windowMs: 60 * 60 * 1000, max: 6 });
+// نسيت كلمة المرور: طلب واحد في الدقيقة و5 في الساعة لكل بريد، سواء البريد متسجّل أو لأ
+// (عشان الرد مايكشفش مين عنده حساب، ومحدش يغرّق بريد حد برسايل)
+const resetAsksPerMinute = createLimiter({ windowMs: 60 * 1000, max: 1 });
+const resetAsksPerHour = createLimiter({ windowMs: 60 * 60 * 1000, max: 5 });
 
 const NEEDS_VERIFY_MSG = "لازم تأكد بريدك الإلكتروني الأول. اكتب الكود اللي وصلك على بريدك.";
 
@@ -46,12 +50,12 @@ function cleanText(v, max) {
 
 // يبعت كود تأكيد جديد لو الحدود تسمح. بيرجّع عدد الثواني اللي لازم يستناها لو لسه بدري، أو 0.
 async function sendCodeIfAllowed(student) {
-  const wait = ev.secondsUntilResend(student.id);
+  const wait = verification.secondsUntilResend(student.id);
   if (wait) return wait;
   const hourWait = codeSends.blockedFor(student.email);
   if (hourWait) return hourWait * 60;
   codeSends.hit(student.email);
-  await ev.sendCode(student);
+  await verification.sendCode(student);
   return 0;
 }
 
@@ -127,16 +131,9 @@ router.post("/verify-email", (req, res) => {
   if (!st || code.length !== 6) return res.status(400).json({ error: "الكود غير صحيح." });
   if (st.email_verified) return res.status(400).json({ error: "البريد ده متأكد بالفعل، ادخل بكلمة المرور." });
 
-  const result = ev.checkCode(st.id, code);
-  if (result.status === "wrong") {
-    return res.status(400).json({ error: `الكود غلط. فاضل ${result.left} ${result.left === 1 ? "محاولة" : "محاولات"}.` });
-  }
-  if (result.status === "locked") {
-    return res.status(400).json({ error: "محاولات غلط كتير. اطلب كود جديد." });
-  }
-  if (result.status === "expired") {
-    return res.status(400).json({ error: "الكود انتهى. اطلب كود جديد." });
-  }
+  const result = verification.checkCode(st.id, code);
+  if (result.status !== "ok") return res.status(400).json({ error: codeError(result) });
+  db.prepare(`UPDATE students SET email_verified = 1 WHERE id = ?`).run(st.id);
   if (st.is_blocked) {
     return res.status(403).json({ error: "تم إيقاف هذا الحساب، يرجى التواصل مع الإدارة." });
   }
@@ -157,6 +154,65 @@ router.post("/resend-code", async (req, res, next) => {
     console.error("⚠️  تعذّر إرسال كود التأكيد:", err.message);
     res.status(502).json({ error: "تعذّر إرسال الكود دلوقتي، حاول تاني بعد شوية." });
   }
+});
+
+// ---------- نسيت كلمة المرور ----------
+// للطلاب: كود على البريد، وبيه يحط كلمة مرور جديدة. المشرف اللي ينسى يطلب من مشرف تاني أو يشغّل npm run create-admin.
+// الرد واحد سواء البريد متسجّل أو لأ، عشان محدش يستخدمها يعرف مين عنده حساب.
+router.post("/forgot-password", async (req, res, next) => {
+  try {
+    await forgotPassword(req, res);
+  } catch (err) {
+    next(err);
+  }
+});
+
+async function forgotPassword(req, res) {
+  if (!mailer.enabled()) {
+    return res.status(503).json({ error: "استعادة كلمة المرور بالبريد مش متاحة دلوقتي. كلّم المشرف يحطلك كلمة مرور جديدة." });
+  }
+  const email = normEmail(req.body.email);
+  if (!EMAIL_RE.test(email)) return res.status(400).json({ error: "البريد الإلكتروني غير صحيح." });
+  if (resetAsksPerMinute.blockedFor(email)) {
+    return res.status(429).json({ error: "استنى دقيقة قبل ما تطلب كود جديد.", wait: 60 });
+  }
+  const hourWait = resetAsksPerHour.blockedFor(email);
+  if (hourWait) return res.status(429).json({ error: `طلبات كتير لنفس البريد، حاول بعد ${hourWait} دقيقة.` });
+  resetAsksPerMinute.hit(email);
+  resetAsksPerHour.hit(email);
+
+  const st = db.prepare(`SELECT id, email, is_blocked FROM students WHERE lower(email) = ?`).get(email);
+  if (st && !st.is_blocked) {
+    try {
+      await passwordReset.sendCode(st);
+    } catch (err) {
+      console.error("⚠️  تعذّر إرسال كود تغيير كلمة المرور:", err.message);
+      return res.status(502).json({ error: "تعذّر إرسال الكود دلوقتي، حاول تاني بعد شوية." });
+    }
+  }
+  res.json({ ok: true });
+}
+
+// ---------- كلمة مرور جديدة بالكود ----------
+// الكود بيثبت إن البريد بتاعه، فبعدها بيدخل على طول، وبريده بيتعتبر متأكد.
+router.post("/reset-password", (req, res) => {
+  const email = normEmail(req.body.email);
+  const code = String(req.body.code || "").replace(/\D/g, "");
+  const password = typeof req.body.new_password === "string" ? req.body.new_password : "";
+  if (password.length < MIN_PASSWORD) {
+    return res.status(400).json({ error: `كلمة المرور الجديدة يجب أن تكون ${MIN_PASSWORD} أحرف على الأقل.` });
+  }
+  const st = db.prepare(`SELECT * FROM students WHERE lower(email) = ?`).get(email);
+  if (!st || code.length !== 6) return res.status(400).json({ error: "الكود غير صحيح." });
+  if (st.is_blocked) return res.status(403).json({ error: "تم إيقاف هذا الحساب، يرجى التواصل مع الإدارة." });
+
+  const result = passwordReset.checkCode(st.id, code);
+  if (result.status !== "ok") return res.status(400).json({ error: codeError(result) });
+
+  db.prepare(`UPDATE students SET password_hash = ?, email_verified = 1 WHERE id = ?`)
+    .run(bcrypt.hashSync(password, 10), st.id);
+  const profile = { id: st.id, full_name: st.full_name, email: st.email };
+  res.json({ token: signToken({ id: st.id, role: "student" }), role: "student", student: profile });
 });
 
 const TABLES = { admin: "admins", student: "students" };
@@ -211,7 +267,7 @@ async function doLogin(req, res, roles, wrongMsg) {
 
   // بريد لسه ما اتأكدش: مفيش دخول، ولو مفيش كود صالح نبعت واحد جديد
   if (role === "student" && !user.email_verified && mailer.enabled()) {
-    if (!ev.hasValidCode(user.id)) {
+    if (!verification.hasValidCode(user.id)) {
       try {
         await sendCodeIfAllowed(user);
       } catch (err) {

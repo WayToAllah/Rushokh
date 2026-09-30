@@ -366,6 +366,7 @@
 
 <script src="password-eye.js"></script>
 <script src="dialog.js"></script>
+<script src="forms.js"></script>
 <script>
 const API_BASE = "/api"; // نسبي: يعمل محليًا وبعد النشر بدون تعديل
 
@@ -434,6 +435,17 @@ function showMsg(id, text, ok) {
   el.textContent = text;
   el.className = "msg " + (ok ? "ok" : "err");
 }
+
+/* ======================= الخانات الناقصة أو الغلط ======================= */
+// رسالة بتصميم الموقع في صندوق الرسايل اللي فوق كل فورم، بدل فقاعة المتصفح (public/forms.js).
+// لازم يتربط قبل أي كود إرسال تاني عشان يوقفه لو فيه خانة ناقصة.
+document.querySelectorAll("form").forEach(form => {
+  const box = form.previousElementSibling;
+  RasokhForms.guard(form, message => {
+    if (box && box.classList.contains("msg")) showMsg(box.id, message, false);
+    else RasokhDialog.alert(message);
+  });
+});
 
 document.getElementById("btnLogout").addEventListener("click", async () => {
   if (!(await RasokhDialog.confirm("هل تريد تسجيل الخروج؟", { title: "تسجيل الخروج", okText: "خروج" }))) return;

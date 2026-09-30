@@ -7,6 +7,39 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.describe("لوحة المشرف", () => {
+  test("فورم فاضي بيطلّع رسالة الموقع في مكانها بدل فقاعة المتصفح", async ({ page }) => {
+    await page.locator("#formStage").getByRole("button", { name: "إضافة" }).click();
+    await expect(page.locator("#msg-stage")).toHaveText('املأ خانة "اسم المرحلة".');
+    await expect(page.locator("#msg-stage")).toHaveClass(/err/);
+    await expect(page.locator("#stageName")).toHaveClass(/invalid/);
+    expect(await page.locator("#formStage").evaluate(f => f.noValidate)).toBe(true);
+    await page.locator("#stageName").fill("x");
+    await expect(page.locator("#stageName")).not.toHaveClass(/invalid/);
+  });
+
+  test("رابط حلقة مكتوب غلط بيقول لازم يبدأ بـ http", async ({ page }) => {
+    await page.locator("#episodeTitle").fill("حلقة");
+    await page.locator("#episodeUrl").fill("youtube.com/watch?v=abc");
+    await page.locator("#formEpisode").getByRole("button", { name: "إضافة" }).click();
+    await expect(page.locator("#msg-episode")).toContainText("http://");
+  });
+
+  test("سؤال من غير نص وخيارات بيقول الخانات الناقصة بالاسم", async ({ page }) => {
+    await page.locator('.tab-btn[data-tab="tests"]').click();
+    await page.locator("#formQuestion").getByRole("button").last().click();
+    await expect(page.locator("#msg-question")).toContainText("نص السؤال");
+    await expect(page.locator("#msg-question")).toContainText("خيار 1");
+  });
+
+  test("تقرير الإكسل بيتحمّل", async ({ page }) => {
+    await page.locator('.tab-btn[data-tab="students"]').click();
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      page.getByRole("button", { name: /Excel/ }).click(),
+    ]);
+    expect(download.suggestedFilename()).toMatch(/\.xlsx$/);
+  });
+
   test("إضافة مرحلة من الفورم وتظهر في عرض المحتوى", async ({ page }) => {
     const name = `مرحلة ${Date.now()}`;
     await page.locator("#stageName").fill(name);

@@ -45,10 +45,22 @@ async function loginViaUi(page, email, password) {
   await page.getByRole("button", { name: "دخول", exact: true }).click();
 }
 
+// آخر كود وصل لبريد في سيرفر الإيميل الوهمي (مشروع "mail" بس). kind: "verify" أو "reset"
+const MAILBOX_URL = "http://127.0.0.1:4196";
+async function mailboxCode(email, kind = "verify", previous = null) {
+  for (let i = 0; i < 50; i++) {
+    const r = await fetch(`${MAILBOX_URL}/code?to=${encodeURIComponent(email)}&kind=${kind}`);
+    const { code } = await r.json();
+    if (code && code !== previous) return code;
+    await new Promise(res => setTimeout(res, 100));
+  }
+  throw new Error(`مفيش كود ${kind} وصل لـ ${email}`);
+}
+
 // مفيش سكرول بالعرض (الصفحة مش خارجة برّه الشاشة)
 async function expectNoHorizontalScroll(page) {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(1);
 }
 
-module.exports = { test, expect, uniqueEmail, apiRegister, apiLogin, loginViaUi, expectNoHorizontalScroll };
+module.exports = { test, expect, uniqueEmail, apiRegister, apiLogin, loginViaUi, mailboxCode, expectNoHorizontalScroll };

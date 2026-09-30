@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>الصفحة مش موجودة | رسوخ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F5F0E2; --bg-raised:#FBF8EE; --ink:#1B2C28; --ink-soft:#4A5C56;
+    --teal-900:#0E332F; --teal-700:#1F5951; --gold:#B9924F; --line:#DCD3B8;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh;
+    display:flex; align-items:center; justify-content:center;
+    padding:40px 18px;
+    background:
+      radial-gradient(circle at 12% 8%, rgba(185,146,79,.10), transparent 40%),
+      radial-gradient(circle at 88% 92%, rgba(31,89,81,.10), transparent 40%),
+      var(--bg);
+    color:var(--ink);
+    font-family:'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, sans-serif;
+  }
+  .card{
+    max-width:420px; width:100%; text-align:center;
+    background:var(--bg-raised); border:1px solid var(--line); border-radius:16px;
+    box-shadow:0 8px 24px rgba(14,51,47,.10);
+    padding:36px 28px;
+  }
+  .seal{
+    width:74px; height:74px; border-radius:50%; margin:0 auto 18px;
+    border:2px solid var(--gold); display:flex; align-items:center; justify-content:center;
+    font-family:'Amiri', serif; font-weight:700; font-size:1.3rem; color:var(--gold);
+  }
+  .code{font-family:'Amiri', serif; font-size:3rem; line-height:1; color:var(--gold); margin:0 0 6px;}
+  h1{font-family:'Amiri', serif; font-size:1.6rem; color:var(--teal-900); margin:0 0 10px;}
+  p{color:var(--ink-soft); line-height:1.9; margin:0 0 22px;}
+  a.home{
+    display:inline-block; padding:12px 24px; border-radius:8px;
+    background:var(--teal-700); color:#fff; text-decoration:none; font-weight:600;
+  }
+  a.home:hover{background:var(--teal-900);}
+  a.home:focus-visible{outline:2px solid var(--gold); outline-offset:3px;}
+</style>
+</head>
+<body>
+  <main class="card">
+    <div class="seal" aria-hidden="true">رسوخ</div>
+    <p class="code">404</p>
+    <h1>الصفحة دي مش موجودة</h1>
+    <p>ممكن الرابط يكون اتكتب غلط، أو الصفحة اتنقلت. ارجع للصفحة الرئيسية وكمّل من هناك.</p>
+    <a class="home" href="/">الصفحة الرئيسية</a>
+  </main>
+</body>
+</html>

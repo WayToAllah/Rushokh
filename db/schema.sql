@@ -156,6 +156,16 @@ CREATE TABLE IF NOT EXISTS email_verifications (
   FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
 );
 
+-- كود تغيير كلمة المرور (نسيت كلمة المرور)، بنفس شكل جدول تأكيد البريد
+CREATE TABLE IF NOT EXISTS password_resets (
+  student_id      INTEGER PRIMARY KEY,
+  code_hash       TEXT NOT NULL,
+  expires_at      INTEGER NOT NULL,
+  attempts        INTEGER NOT NULL DEFAULT 0,
+  sent_at         INTEGER NOT NULL,
+  FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS idx_stage_subject_stage ON stage_subject(stage_id);
 CREATE INDEX IF NOT EXISTS idx_series_stage_subject ON series(stage_subject_id);
 CREATE INDEX IF NOT EXISTS idx_episodes_series ON episodes(series_id);

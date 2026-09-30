@@ -193,6 +193,12 @@ describe("كلمة مرور الطالب", () => {
     await app.login(s.email, "newpass123");
   });
 
+  it("من غير إعدادات إيميل: نسيت كلمة المرور بتقول إنها مش متاحة وكلّم المشرف (503)", async () => {
+    const r = await app.call("POST", "/auth/forgot-password", { body: { email: "ahmed@rasokh.test" } });
+    assert.equal(r.status, 503);
+    assert.match(r.data.error, /المشرف/);
+  });
+
   it("المشرف بيحط كلمة مرور جديدة لطالب نسي، والطالب بيدخل بيها", async () => {
     const s = await app.newStudent();
     const admin = await app.adminToken();
