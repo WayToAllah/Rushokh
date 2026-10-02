@@ -112,6 +112,11 @@ CREATE TABLE IF NOT EXISTS questions (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
   test_id         INTEGER NOT NULL,
   text            TEXT NOT NULL,
+  -- mcq (اختيار من متعدد) | true_false (صح وغلط) | fill (أكمل) | essay (مقالي)
+  type            TEXT NOT NULL DEFAULT 'mcq',
+  points          INTEGER NOT NULL DEFAULT 1,
+  -- أكمل: قائمة الإجابات المقبولة (JSON). مقالي: إجابة نموذجية للمصحح (نص). غيرهم: فاضي
+  answer_key      TEXT,
   order_index     INTEGER NOT NULL DEFAULT 0,
   FOREIGN KEY (test_id) REFERENCES tests(id) ON DELETE CASCADE
 );
@@ -130,6 +135,8 @@ CREATE TABLE IF NOT EXISTS student_test_attempts (
   test_id         INTEGER NOT NULL,
   score           INTEGER NOT NULL,
   passed          INTEGER NOT NULL,
+  -- graded: النتيجة نهائية | pending: فيه أسئلة مقالية مستنية تصحيح المشرف (passed = 0 لحد ما تتصحح)
+  status          TEXT NOT NULL DEFAULT 'graded',
   attempted_at    TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
   FOREIGN KEY (test_id) REFERENCES tests(id) ON DELETE CASCADE
@@ -174,4 +181,22 @@ CREATE INDEX IF NOT EXISTS idx_sep_student ON student_episode_progress(student_i
 CREATE INDEX IF NOT EXISTS idx_sbp_student ON student_book_progress(student_id);
 CREATE INDEX IF NOT EXISTS idx_questions_test ON questions(test_id);
 CREATE INDEX IF NOT EXISTS idx_options_question ON options(question_id);
+-- إجابة الطالب على كل سؤال في كل محاولة (عشان تصحيح المقالي ومراجعة الإجابات)
+CREATE TABLE IF NOT EXISTS student_answers (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  attempt_id      INTEGER NOT NULL,
+  question_id     INTEGER NOT NULL,
+  option_id       INTEGER,
+  answer_text     TEXT,
+  -- 1 صح | 0 غلط | NULL مستني تصحيح (مقالي)
+  is_correct      INTEGER,
+  points_awarded  REAL,
+  max_points      INTEGER NOT NULL DEFAULT 1,
+  feedback        TEXT,
+  graded_at       TEXT,
+  FOREIGN KEY (attempt_id) REFERENCES student_test_attempts(id) ON DELETE CASCADE,
+  FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_answers_attempt ON student_answers(attempt_id);
+
 CREATE INDEX IF NOT EXISTS idx_attempts_student ON student_test_attempts(student_id);

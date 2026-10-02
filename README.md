@@ -99,8 +99,9 @@ rasokh-backend/
 | POST    | `/progress/book`                     | `{ book_id, current_page }`                   |
 | GET     | `/progress/me/report`                | تقرير الطالب: `completed` / `in_progress`     |
 | GET     | `/progress/certificate/:stageId`     | نسبة الإنجاز وبيانات الشهادة                 |
-| GET     | `/tests/:id`                         | أسئلة الاختبار (بدون كشف الإجابة الصحيحة)     |
-| POST    | `/tests/:id/attempt`                 | `{ answers:[{question_id, option_id}] }`      |
+| GET     | `/tests/:id`                         | أسئلة الاختبار بنوع ودرجة كل سؤال (بدون كشف الإجابة الصحيحة) |
+| POST    | `/tests/:id/attempt`                 | `{ answers:[{question_id, option_id} أو {question_id, text}] }` — بيرجّع `status: graded|pending` |
+| GET     | `/tests/:id/result`                  | آخر محاولة بالتفصيل: إجابتك ودرجة كل سؤال وملاحظة المصحح |
 
 | POST    | `/account/password`                  | الطالب يغيّر كلمة المرور: `{ current_password, new_password }` |
 
@@ -117,7 +118,7 @@ rasokh-backend/
 | DELETE  | `/admin/content/{stages,subjects,stage-subject,series,episodes,books}/:id` | حذف |
 | GET     | `/admin/tests`                         | كل الاختبارات مع أسئلتها                    |
 | POST    | `/admin/tests`                         | إنشاء اختبار: `{ series_id, title, pass_percent }` |
-| POST    | `/admin/tests/questions`               | إضافة سؤال: `{ test_id, text, options:[{text,is_correct}] }` |
+| POST    | `/admin/tests/questions`               | إضافة سؤال: `{ test_id, text, type, points, ... }` (شوف أنواع الأسئلة تحت) |
 | DELETE  | `/admin/tests/:id`                     | حذف اختبار                                  |
 | DELETE  | `/admin/tests/questions/:id`           | حذف سؤال                                    |
 | GET     | `/admin/students`                      | قائمة الطلاب                                |
@@ -132,9 +133,25 @@ rasokh-backend/
 | PATCH   | `/admin/content/{stages,subjects,series,episodes,books}/:id` | تعديل جزئي (الحقول المبعوتة بس). السلسلة: `{ name, url }` |
 | POST    | `/admin/content/reorder`               | `{ kind: stages|stage-subject|series|episodes|books, ids:[...] }` |
 | PATCH   | `/admin/tests/:id`                     | `{ title, pass_percent }`                   |
-| PATCH   | `/admin/tests/questions/:id`           | `{ text, options:[{text,is_correct}] }` (إجابة صحيحة واحدة) |
+| PATCH   | `/admin/tests/questions/:id`           | نفس حقول الإضافة، والحقول اللي ما اتبعتتش بتفضل زي ما هي |
+| GET     | `/admin/tests/reviews`                 | المحاولات اللي فيها مقالي مستني تصحيح       |
+| POST    | `/admin/tests/reviews/:attemptId`      | تصحيح المقالي: `{ grades:[{answer_id, points, feedback}] }` |
 | PATCH   | `/admin/students/:id/password`         | كلمة مرور جديدة لطالب: `{ new_password }`   |
 | GET     | `/admin/reports/students.xlsx`         | تقرير Excel: ملخص الطلاب + التقدم في كل مادة |
+
+## أنواع الأسئلة (`lib/quiz.js`)
+
+| النوع | `type` | بيانات الإضافة | التصحيح |
+|-------|--------|----------------|---------|
+| اختيار من متعدد | `mcq` | `options:[{text, is_correct}]` خياران على الأقل وواحد صح | تلقائي |
+| صح وغلط | `true_false` | `correct: true|false` (الخيارات بتتعمل لوحدها) | تلقائي |
+| أكمل | `fill` | `accepted_answers: ["...", ...]` | تلقائي، والمقارنة من غير تشكيل، والهمزات والتاء المربوطة والألف المقصورة واحدة |
+| مقالي | `essay` | `model_answer` (اختياري، للمصحح بس) | المشرف من تبويب "التصحيح" |
+
+- كل سؤال ليه `points` (من 1 لـ 100)، والنسبة = مجموع الدرجات ÷ الدرجة الكلية.
+- المحاولة اللي فيها مقالي متكتب بتتسجل `status = 'pending'` و`passed = 0`، فما بتتحسبش في العبور ولا الشهادة
+  لحد ما المشرف يصححها. بعد التصحيح الدرجة بتتحسب من جديد والطالب بيعدّي لو خلّص المرحلة.
+- إجابات كل محاولة بتتحفظ في `student_answers` (للتصحيح ولشاشة "📄 نتيجتي" عند الطالب).
 
 ## ملاحظات تصميم مهمة
 

@@ -126,6 +126,28 @@
   .test-card-head .actions{display:flex; gap:6px;}
   .edit-options{margin-bottom:12px;}
   .tree-stage > .head .actions, .tree-subject > .head .actions{display:flex; gap:6px; align-items:center; flex-wrap:wrap;}
+  .tab-badge{display:inline-block; min-width:20px; padding:1px 6px; margin-inline-start:4px; border-radius:999px;
+    background:var(--terracotta); color:#fff; font-size:.7rem; line-height:1.5; text-align:center;}
+  .qtype-pill{display:inline-block; font-size:.68rem; padding:1px 8px; border-radius:999px; background:var(--line-soft);
+    color:var(--teal-900); margin-inline-end:6px; vertical-align:middle;}
+  .q-editor .row-2{align-items:flex-end;}
+  .q-editor [data-panel]{margin-top:4px;}
+  .q-editor textarea{min-height:70px;}
+  .tf-choice{display:flex; gap:16px; margin-bottom:12px;}
+  .tf-choice label{display:flex; align-items:center; gap:6px; font-size:.88rem; color:var(--ink); margin:0;}
+  .tf-choice input{width:auto; margin:0;}
+  .review-card{border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:14px; background:var(--bg-raised);}
+  .review-head{display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; align-items:baseline;}
+  .review-head strong{color:var(--teal-900);}
+  .review-essay{border-top:1px dashed var(--line); padding-top:12px; margin-top:12px;}
+  .review-essay .q{font-weight:600; font-size:.88rem; margin-bottom:6px;}
+  .student-answer{white-space:pre-wrap; background:#fff; border:1px solid var(--line-soft); border-radius:8px;
+    padding:10px 12px; font-size:.88rem; line-height:1.9; margin-bottom:8px;}
+  .model-answer{font-size:.78rem; color:var(--ink-soft); margin-bottom:10px;}
+  .model-answer summary{cursor:pointer;}
+  .grade-row{display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap;}
+  .grade-row .pts{width:110px; flex:none;}
+  .grade-row .fb{flex:1; min-width:200px;}
   .panel-head{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:4px;}
   .panel-head h3{margin:0;}
 </style>
@@ -143,6 +165,7 @@
   <button class="tab-btn active" data-tab="content-manage">إدارة المحتوى</button>
   <button class="tab-btn" data-tab="content-view">عرض المحتوى</button>
   <button class="tab-btn" data-tab="tests">الاختبارات</button>
+  <button class="tab-btn" data-tab="reviews">التصحيح <span class="tab-badge" id="reviewsBadge" hidden></span></button>
   <button class="tab-btn" data-tab="students">الطلاب</button>
   <button class="tab-btn" data-tab="account">حسابي</button>
 </nav>
@@ -275,13 +298,7 @@
         <select id="questionTest" required></select>
         <label>نص السؤال</label>
         <textarea id="questionText" rows="2" required></textarea>
-        <label>الخيارات (حدد الصحيح)</label>
-        <div id="optionsWrap">
-          <div class="opt-row"><input type="radio" name="correctOpt" value="0" checked><input type="text" class="opt-text" placeholder="خيار 1" required></div>
-          <div class="opt-row"><input type="radio" name="correctOpt" value="1"><input type="text" class="opt-text" placeholder="خيار 2" required></div>
-          <div class="opt-row"><input type="radio" name="correctOpt" value="2"><input type="text" class="opt-text" placeholder="خيار 3"></div>
-          <div class="opt-row"><input type="radio" name="correctOpt" value="3"><input type="text" class="opt-text" placeholder="خيار 4"></div>
-        </div>
+        <div id="newQuestionEditor"></div>
         <button class="btn" type="submit">إضافة السؤال</button>
       </form>
     </div>
@@ -290,6 +307,16 @@
   <div class="panel-card">
     <h3>الاختبارات الحالية</h3>
     <div id="testsList">جارٍ التحميل...</div>
+  </div>
+</section>
+
+<!-- ======================= تبويب: التصحيح ======================= -->
+<section class="tab-panel" id="tab-reviews">
+  <div class="panel-card">
+    <h3>إجابات مقالية مستنية تصحيح</h3>
+    <p class="hint">لما طالب يحل اختبار فيه سؤال مقالي، نتيجته بتفضل "قيد التصحيح" لحد ما تدّيله درجة هنا.
+      بعد الحفظ الدرجة بتتحسب، ولو نجح وخلّص باقي المرحلة بيعدّي لوحده.</p>
+    <div id="reviewsList">جارٍ التحميل...</div>
   </div>
 </section>
 
@@ -484,7 +511,7 @@ async function refreshAll() {
   renderTree(tree);
   renderTestsList(tests);
   populateTestAndQuestionSelects(tree, tests);
-  await loadStudents();
+  await Promise.all([loadStudents(), loadReviews()]);
 }
 
 function options(list, valueKey, labelFn) {
@@ -562,28 +589,218 @@ bindForm("formTest", "msg-test", "/admin/tests",
   () => ({ series_id: num("testSeries"), title: val("testTitle"), pass_percent: num("testPassPercent") || 60 }),
   "تم إنشاء الاختبار. أضف له أسئلة عشان يظهر للطالب.");
 
+/* ======================= محرر السؤال (كل الأنواع) ======================= */
+const QTYPES = [
+  ["mcq", "اختيار من متعدد"],
+  ["true_false", "صح وغلط"],
+  ["fill", "أكمل (الطالب يكتب الإجابة)"],
+  ["essay", "مقالي (المشرف يصححه)"],
+];
+const QTYPE_SHORT = { mcq: "اختيار", true_false: "صح وغلط", fill: "أكمل", essay: "مقالي" };
+
+// q: سؤال موجود (للتعديل) أو null (سؤال جديد)
+function questionEditorHtml(q) {
+  const type = q ? q.type : "mcq";
+  const opts = q && q.type === "mcq" ? q.options.map(o => ({ text: o.text, is_correct: !!o.is_correct })) : [];
+  while (opts.length < 4) opts.push({ text: "", is_correct: false });
+  if (!opts.some(o => o.is_correct)) opts[0].is_correct = true;
+  const tfTrue = q && q.type === "true_false" ? !!(q.options.find(o => o.text === "صح") || {}).is_correct : true;
+  const accepted = q && q.type === "fill" ? (q.accepted_answers || []).join("\n") : "";
+  const model = q && q.type === "essay" ? (q.model_answer || "") : "";
+  const name = "qe" + Math.random().toString(36).slice(2, 8); // اسم مميز لأزرار الراديو
+
+  return `
+  <div class="q-editor">
+    <div class="row-2">
+      <div><label>نوع السؤال</label>
+        <select data-q="type">${QTYPES.map(([v, l]) => `<option value="${v}"${v === type ? " selected" : ""}>${l}</option>`).join("")}</select>
+      </div>
+      <div style="max-width:120px;"><label>الدرجة</label>
+        <input type="number" data-q="points" min="1" max="100" value="${esc(q ? q.points : 1)}">
+      </div>
+    </div>
+
+    <div data-panel="mcq">
+      <label>الخيارات (حدد الصحيح)</label>
+      ${opts.map((o, i) => `
+        <div class="opt-row">
+          <input type="radio" name="${name}_mcq" value="${i}"${o.is_correct ? " checked" : ""} aria-label="الإجابة الصحيحة">
+          <input type="text" data-q="opt" value="${esc(o.text)}" placeholder="خيار ${i + 1}">
+        </div>`).join("")}
+    </div>
+
+    <div data-panel="true_false">
+      <label>الإجابة الصحيحة</label>
+      <div class="tf-choice">
+        <label><input type="radio" name="${name}_tf" value="true"${tfTrue ? " checked" : ""}> صح</label>
+        <label><input type="radio" name="${name}_tf" value="false"${tfTrue ? "" : " checked"}> خطأ</label>
+      </div>
+    </div>
+
+    <div data-panel="fill">
+      <label>الإجابات المقبولة (كل إجابة في سطر)</label>
+      <textarea data-q="accepted" rows="3" placeholder="الشهادتان&#10;شهادة أن لا إله إلا الله">${esc(accepted)}</textarea>
+      <p class="hint" style="margin-top:-6px;">التصحيح تلقائي، والاختلاف في التشكيل والهمزات والتاء المربوطة مش بيفرق. اكتب كل صيغة تانية مقبولة في سطر لوحدها.</p>
+    </div>
+
+    <div data-panel="essay">
+      <label>إجابة نموذجية تساعدك وقت التصحيح (اختياري، الطالب مش بيشوفها)</label>
+      <textarea data-q="model" rows="3">${esc(model)}</textarea>
+      <p class="hint" style="margin-top:-6px;">نتيجة الطالب هتفضل "قيد التصحيح" لحد ما تدّيله درجة من تبويب التصحيح.</p>
+    </div>
+  </div>`;
+}
+
+// بيربط تغيير النوع بإظهار الجزء المناسب. لازم يتنادى بعد ما الـ HTML يتحط في الصفحة
+function bindQuestionEditor(root) {
+  const editor = root.querySelector(".q-editor");
+  const sync = () => {
+    const type = editor.querySelector('[data-q="type"]').value;
+    editor.querySelectorAll("[data-panel]").forEach(p => {
+      const active = p.dataset.panel === type;
+      p.hidden = !active;
+      // خانات النوع المستخبي ما تدخلش في التحقق من الفورم
+      p.querySelectorAll("input, textarea").forEach(el => { el.disabled = !active; });
+    });
+    // الإجباري حسب النوع: أول خيارين في الاختيار، والإجابات المقبولة في أكمل
+    editor.querySelectorAll('[data-q="opt"]').forEach((el, i) => { el.required = type === "mcq" && i < 2; });
+    editor.querySelector('[data-q="accepted"]').required = type === "fill";
+  };
+  editor.querySelector('[data-q="type"]').addEventListener("change", sync);
+  sync();
+}
+
+// بيرجّع { type, points, options | correct | accepted_answers | model_answer } أو { error }
+function readQuestionEditor(root) {
+  const editor = root.querySelector(".q-editor");
+  const type = editor.querySelector('[data-q="type"]').value;
+  const body = { type, points: parseInt(editor.querySelector('[data-q="points"]').value, 10) || 1 };
+  if (type === "mcq") {
+    const checked = editor.querySelector('[data-panel="mcq"] input[type="radio"]:checked');
+    const idx = checked ? parseInt(checked.value, 10) : -1;
+    body.options = [...editor.querySelectorAll('[data-q="opt"]')]
+      .map((inp, i) => ({ text: inp.value.trim(), is_correct: i === idx }))
+      .filter(o => o.text);
+    if (!body.options.some(o => o.is_correct)) return { error: "الخيار المحدد كصحيح فاضي، اكتب نصه أو اختار خيار تاني." };
+  } else if (type === "true_false") {
+    const checked = editor.querySelector('[data-panel="true_false"] input[type="radio"]:checked');
+    body.correct = !checked || checked.value === "true";
+  } else if (type === "fill") {
+    body.accepted_answers = editor.querySelector('[data-q="accepted"]').value.split("\n").map(x => x.trim()).filter(Boolean);
+  } else if (type === "essay") {
+    body.model_answer = editor.querySelector('[data-q="model"]').value.trim();
+  }
+  return body;
+}
+
+// ملخص الإجابة الصحيحة في قائمة الاختبارات
+function answerSummary(q) {
+  if (q.type === "mcq" || q.type === "true_false") return "الصحيح: " + ((q.options.find(o => o.is_correct) || {}).text || "—");
+  if (q.type === "fill") return "المقبول: " + (q.accepted_answers || []).join(" / ");
+  if (q.type === "essay") return "بيتصحح يدوي";
+  return "";
+}
+
+// فورم "إضافة سؤال"
+const newQuestionBox = document.getElementById("newQuestionEditor");
+function resetNewQuestionEditor(keepType) {
+  newQuestionBox.innerHTML = questionEditorHtml(keepType ? { type: keepType, points: 1, options: [] } : null);
+  bindQuestionEditor(newQuestionBox);
+}
+resetNewQuestionEditor();
+
 document.getElementById("formQuestion").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const correctIdx = parseInt(document.querySelector('input[name="correctOpt"]:checked').value, 10);
-  const opts = Array.from(document.querySelectorAll(".opt-text"))
-    .map((i, idx) => ({ text: i.value.trim(), is_correct: idx === correctIdx }))
-    .filter(o => o.text !== "");
-  if (!opts.some(o => o.is_correct)) {
-    showMsg("msg-question", "الخيار المحدد كصحيح فاضي، اكتب نصه أو اختار خيار تاني.", false);
-    return;
-  }
+  const q = readQuestionEditor(newQuestionBox);
+  if (q.error) { showMsg("msg-question", q.error, false); return; }
   try {
     await apiFetch("/admin/tests/questions", {
       method: "POST",
-      body: JSON.stringify({ test_id: num("questionTest"), text: val("questionText"), options: opts }),
+      body: JSON.stringify({ test_id: num("questionTest"), text: val("questionText"), ...q }),
     });
     showMsg("msg-question", "تمت إضافة السؤال.", true);
     const keepTest = document.getElementById("questionTest").value;
-    e.target.reset();
+    document.getElementById("questionText").value = "";
+    resetNewQuestionEditor(q.type); // نفس النوع للسؤال الجاي
     await refreshAll();
     document.getElementById("questionTest").value = keepTest;
   } catch (err) { showMsg("msg-question", err.message, false); }
 });
+
+/* ======================= التصحيح ======================= */
+async function loadReviews() {
+  const list = document.getElementById("reviewsList");
+  const badge = document.getElementById("reviewsBadge");
+  let reviews;
+  try {
+    reviews = await apiFetch("/admin/tests/reviews");
+  } catch (err) {
+    list.innerHTML = `<p style="color:var(--terracotta);">${esc(err.message)}</p>`;
+    return;
+  }
+  badge.hidden = reviews.length === 0;
+  badge.textContent = reviews.length;
+  if (reviews.length === 0) {
+    list.innerHTML = `<p class="empty-note">مفيش إجابات مستنية تصحيح. 👍</p>`;
+    return;
+  }
+  list.innerHTML = reviews.map(r => `
+    <form class="review-card" data-attempt="${esc(r.id)}">
+      <div class="review-head">
+        <strong>${esc(r.full_name)}</strong>
+        <span class="muted">${esc(r.test_title)} — ${esc(r.series_name)} · ${esc(formatDate(r.attempted_at))}</span>
+      </div>
+      <div class="muted" style="margin-top:4px;">درجة الأسئلة اللي اتصححت لوحدها: ${esc(r.auto.earned)} من ${esc(r.auto.total)} · النجاح من ${esc(r.pass_percent)}%</div>
+      <div class="msg" data-msg></div>
+      ${r.essays.map(e => `
+        <div class="review-essay">
+          <div class="q">${esc(e.question)}</div>
+          <div class="student-answer">${esc(e.answer_text)}</div>
+          ${e.model_answer ? `<details class="model-answer"><summary>الإجابة النموذجية</summary>${esc(e.model_answer)}</details>` : ""}
+          <div class="grade-row">
+            <div class="pts">
+              <label>الدرجة (من ${esc(e.max_points)})</label>
+              <input type="number" data-answer="${esc(e.id || e.answer_id)}" min="0" max="${esc(e.max_points)}" step="0.5" required>
+            </div>
+            <div class="fb">
+              <label>ملاحظة للطالب (اختياري)</label>
+              <input type="text" data-feedback="${esc(e.answer_id)}" maxlength="1000">
+            </div>
+          </div>
+        </div>`).join("")}
+      <button class="btn" type="submit" style="margin-top:12px;">حفظ التصحيح</button>
+    </form>`).join("");
+
+  list.querySelectorAll("form[data-attempt]").forEach(form => {
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const grades = [...form.querySelectorAll("[data-answer]")].map(inp => ({
+        answer_id: Number(inp.dataset.answer),
+        points: Number(inp.value),
+        feedback: form.querySelector(`[data-feedback="${inp.dataset.answer}"]`).value,
+      }));
+      const btn = form.querySelector('button[type="submit"]');
+      btn.disabled = true;
+      try {
+        const r = await apiFetch("/admin/tests/reviews/" + form.dataset.attempt, { method: "POST", body: JSON.stringify({ grades }) });
+        const msg = `اتصحح: ${r.score}% — ${r.passed ? "ناجح" : "راسب"}${r.advanced_to ? ` وعدّى لمرحلة ${r.advanced_to}` : ""}`;
+        form.innerHTML = `<div class="msg ok">${esc(msg)}</div>`;
+        setTimeout(() => { loadReviews(); loadStudents(); }, 1500);
+      } catch (err) {
+        const box = form.querySelector("[data-msg]");
+        box.textContent = err.message;
+        box.className = "msg err";
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
+function formatDate(s) {
+  if (!s) return "";
+  const d = new Date(String(s).replace(" ", "T") + "Z");
+  return isNaN(d) ? s : d.toLocaleString("ar-EG", { dateStyle: "medium", timeStyle: "short" });
+}
 
 /* ======================= نافذة التعديل ======================= */
 // openEdit({ title, path, fields: [{ name, label, type, value, ... }] })
@@ -592,6 +809,7 @@ let editState = null;
 
 function fieldHtml(f, i) {
   const id = `ef_${i}`;
+  if (f.type === "question") return `<div id="${id}">${questionEditorHtml(f.value)}</div>`;
   if (f.type === "options") {
     const opts = f.value.length >= 4 ? f.value : [...f.value, ...Array(4 - f.value.length).fill({ text: "", is_correct: false })];
     return `<label>${esc(f.label)}</label>
@@ -614,6 +832,7 @@ function openEdit(cfg) {
   editState = cfg;
   document.getElementById("editTitle").textContent = cfg.title;
   document.getElementById("editFields").innerHTML = cfg.fields.map(fieldHtml).join("");
+  cfg.fields.forEach((f, i) => { if (f.type === "question") bindQuestionEditor(document.getElementById(`ef_${i}`)); });
   const msg = document.getElementById("msg-edit");
   msg.className = "msg"; msg.textContent = "";
   document.getElementById("editOverlay").classList.add("show");
@@ -625,8 +844,13 @@ document.getElementById("editForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   if (!editState) return;
   const body = {};
+  let fieldError = null;
   editState.fields.forEach((f, i) => {
-    if (f.type === "options") {
+    if (f.type === "question") {
+      const q = readQuestionEditor(document.getElementById(`ef_${i}`));
+      if (q.error) fieldError = q.error;
+      Object.assign(body, q);
+    } else if (f.type === "options") {
       const correct = document.querySelector(`input[name="ef_${i}_correct"]:checked`);
       const correctIdx = correct ? parseInt(correct.value, 10) : -1;
       body[f.name] = [...document.querySelectorAll("#editFields .edit-opt-text")]
@@ -636,6 +860,7 @@ document.getElementById("editForm").addEventListener("submit", async (e) => {
       body[f.name] = document.getElementById(`ef_${i}`).value.trim();
     }
   });
+  if (fieldError) { showMsg("msg-edit", fieldError, false); return; }
   const btn = e.target.querySelector('button[type="submit"]');
   btn.disabled = true;
   try {
@@ -842,12 +1067,12 @@ function renderTestsList(tests) {
             title: "تعديل السؤال", path: "/admin/tests/questions/" + q.id,
             fields: [
               { name: "text", label: "نص السؤال", value: q.text, required: true },
-              { name: "options", label: "الخيارات (حدد الصحيح)", type: "options", value: q.options.map(o => ({ text: o.text, is_correct: !!o.is_correct })) },
+              { name: "question", type: "question", value: q },
             ],
           };
           return `
           <li>
-            <span>${esc(q.text)} <span class="muted">(الصحيح: ${esc((q.options.find(o => o.is_correct) || {}).text)})</span></span>
+            <span><span class="qtype-pill">${esc(QTYPE_SHORT[q.type] || q.type)}${q.points > 1 ? ` · ${esc(q.points)} درجات` : ""}</span>${esc(q.text)} <span class="muted">(${esc(answerSummary(q))})</span></span>
             <span class="actions">
               <button class="btn small outline" data-edit-question="${esc(q.id)}" title="تعديل">✏️</button>
               <button class="btn danger small" data-del-question="${esc(q.id)}" title="حذف">🗑</button>

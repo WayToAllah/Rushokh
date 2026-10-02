@@ -34,5 +34,11 @@ if (addColumnIfMissing("students", "email_verified", "INTEGER NOT NULL DEFAULT 0
   db.exec(`UPDATE students SET email_verified = 1`);
 }
 
+// أنواع الأسئلة: الأسئلة القديمة كلها اختيار من متعدد بدرجة واحدة
+addColumnIfMissing("questions", "type", "TEXT NOT NULL DEFAULT 'mcq'");
+addColumnIfMissing("questions", "points", "INTEGER NOT NULL DEFAULT 1");
+addColumnIfMissing("questions", "answer_key", "TEXT");
+addColumnIfMissing("student_test_attempts", "status", "TEXT NOT NULL DEFAULT 'graded'");
+
 db.DB_PATH = DB_PATH;
 module.exports = db;

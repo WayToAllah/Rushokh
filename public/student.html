@@ -333,6 +333,31 @@
   }
   .result-banner.pass{background:rgba(124,150,131,.18); color:var(--teal-900);}
   .result-banner.fail{background:rgba(168,80,58,.12); color:var(--terracotta);}
+  .result-banner.wait{background:rgba(185,146,79,.15); color:#6b5320;}
+  .q-type{display:inline-block; font-size:.68rem; font-weight:500; padding:1px 8px; border-radius:999px;
+    background:var(--line-soft); color:var(--ink-soft); vertical-align:middle; margin-inline-start:4px;}
+  .fill-input, .essay-input{width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px;
+    font-family:inherit; font-size:.92rem; background:#fff; color:var(--ink);}
+  .essay-input{resize:vertical; min-height:110px; line-height:1.8;}
+  .fill-input:focus, .essay-input:focus{outline:none; border-color:var(--teal-700);}
+  .tf-options{display:flex; gap:10px; flex-wrap:wrap;}
+  .tf-options .opt-label{flex:1; min-width:120px; justify-content:center;}
+  .marks{display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-top:10px;}
+  .mark{font-size:.78rem; padding:3px 10px; border-radius:999px; background:var(--line-soft);}
+  .mark.ok{background:rgba(124,150,131,.25); color:var(--teal-900);}
+  .mark.no{background:rgba(168,80,58,.15); color:var(--terracotta);}
+  .mark.wait{background:rgba(185,146,79,.18); color:#6b5320;}
+  .test-actions{display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;}
+  .answer-review{padding-inline-start:20px; margin:0;}
+  .answer-review li{padding:10px 0; border-bottom:1px solid var(--line-soft); font-size:.88rem; line-height:1.8;}
+  .answer-review .q{font-weight:600;}
+  .answer-review .a{white-space:pre-wrap;}
+  .answer-review .p{font-size:.8rem; font-weight:600;}
+  .answer-review li.ok .p{color:var(--teal-700);}
+  .answer-review li.no .p{color:var(--terracotta);}
+  .answer-review li.part .p, .answer-review li.wait .p{color:#6b5320;}
+  .answer-review .fb{margin-top:4px; font-size:.82rem; background:var(--bg); border-radius:8px; padding:6px 10px;}
+  .answer-review .muted{color:var(--ink-soft);}
 
   /* Report modal */
   .report-stats{display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap;}
@@ -950,14 +975,21 @@ function renderCurriculum() {
         const tried = test.last_score !== null && test.last_score !== undefined;
         const cta = document.createElement("div");
         cta.className = "test-cta";
-        const status = test.passed
-          ? `✓ ناجح — آخر نتيجة: ${test.last_score}%`
-          : tried ? `آخر نتيجة: ${test.last_score}% — النجاح من ${test.pass_percent}%` : `لم يُؤدَّ بعد — النجاح من ${test.pass_percent}%`;
+        const status = test.pending
+          ? `⏳ قيد التصحيح — النتيجة هتظهر بعد ما المشرف يصحح الأسئلة المقالية`
+          : test.passed
+            ? `✓ ناجح — آخر نتيجة: ${test.last_score}%`
+            : tried ? `آخر نتيجة: ${test.last_score}% — النجاح من ${test.pass_percent}%` : `لم يُؤدَّ بعد — النجاح من ${test.pass_percent}%`;
         cta.innerHTML = `
           <div class="txt">${esc(test.title)}<small>${status}</small></div>
-          <button class="tiny-btn">${tried ? "إعادة الاختبار" : "بدء الاختبار"}</button>
+          <div class="test-actions">
+            ${test.has_result ? `<button class="tiny-btn outline" data-result>📄 نتيجتي</button>` : ""}
+            <button class="tiny-btn" data-start>${tried ? "إعادة الاختبار" : "بدء الاختبار"}</button>
+          </div>
         `;
-        cta.querySelector("button").addEventListener("click", () => openTest(test.id));
+        cta.querySelector("[data-start]").addEventListener("click", () => openTest(test.id));
+        const resultBtn = cta.querySelector("[data-result]");
+        if (resultBtn) resultBtn.addEventListener("click", () => openTestResult(test.id));
         block.appendChild(cta);
       });
 
@@ -1021,6 +1053,8 @@ async function refreshProgressQuietly() {
 }
 
 /* ======================= الاختبار ======================= */
+const QTYPE_LABEL = { mcq: "اختيار من متعدد", true_false: "صح وغلط", fill: "أكمل", essay: "مقالي" };
+
 async function openTest(testId) {
   const overlay = document.getElementById("testOverlay");
   const body = document.getElementById("testModalBody");
@@ -1036,19 +1070,32 @@ async function openTest(testId) {
     return;
   }
 
-  body.innerHTML = `<h2>${esc(test.title)}</h2><p style="font-size:.8rem; color:var(--ink-soft);">النجاح من ${test.pass_percent}%</p><form id="testForm"></form>`;
+  const hasEssay = test.questions.some(q => q.type === "essay");
+  body.innerHTML = `
+    <h2>${esc(test.title)}</h2>
+    <p style="font-size:.8rem; color:var(--ink-soft);">
+      النجاح من ${test.pass_percent}%${hasEssay ? " · الأسئلة المقالية بيصححها المشرف، فنتيجتك النهائية هتظهر بعد التصحيح" : ""}
+    </p>
+    <form id="testForm"></form>`;
   const form = body.querySelector("#testForm");
 
   test.questions.forEach((q, qi) => {
     const block = document.createElement("div");
     block.className = "q-block";
-    const optsHtml = q.options.map(opt => `
-      <label class="opt-label">
-        <input type="radio" name="q${q.id}" value="${opt.id}" required>
-        ${esc(opt.text)}
-      </label>
-    `).join("");
-    block.innerHTML = `<div class="q-title">${qi + 1}. ${esc(q.text)}</div>${optsHtml}`;
+    const meta = `<span class="q-type">${esc(QTYPE_LABEL[q.type] || "")}${q.points > 1 ? ` · ${q.points} درجات` : ""}</span>`;
+    let input = "";
+    if (q.type === "mcq" || q.type === "true_false") {
+      input = `<div class="${q.type === "true_false" ? "tf-options" : ""}">${q.options.map(opt => `
+        <label class="opt-label">
+          <input type="radio" name="q${q.id}" value="${opt.id}" required>
+          ${esc(opt.text)}
+        </label>`).join("")}</div>`;
+    } else if (q.type === "fill") {
+      input = `<input type="text" class="fill-input" name="q${q.id}" maxlength="500" required autocomplete="off" placeholder="اكتب الإجابة">`;
+    } else if (q.type === "essay") {
+      input = `<textarea class="essay-input" name="q${q.id}" maxlength="5000" rows="5" required placeholder="اكتب إجابتك"></textarea>`;
+    }
+    block.innerHTML = `<div class="q-title">${qi + 1}. ${esc(q.text)} ${meta}</div>${input}`;
     form.appendChild(block);
   });
 
@@ -1062,8 +1109,11 @@ async function openTest(testId) {
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const answers = test.questions.map(q => {
-      const chosen = form.querySelector(`input[name="q${q.id}"]:checked`);
-      return { question_id: q.id, option_id: chosen ? parseInt(chosen.value, 10) : null };
+      if (q.type === "mcq" || q.type === "true_false") {
+        const chosen = form.querySelector(`input[name="q${q.id}"]:checked`);
+        return { question_id: q.id, option_id: chosen ? parseInt(chosen.value, 10) : null };
+      }
+      return { question_id: q.id, text: (form.querySelector(`[name="q${q.id}"]`).value || "").trim() };
     });
     submitBtn.disabled = true;
     submitBtn.textContent = "جارٍ التصحيح...";
@@ -1081,21 +1131,69 @@ async function openTest(testId) {
 
 async function showTestResult(test, result) {
   const body = document.getElementById("testModalBody");
+  const pending = result.status === "pending";
+  const marks = (result.results || []).map((r, i) => {
+    const icon = r.correct === null ? "⏳" : r.correct ? "✓" : "✗";
+    const cls = r.correct === null ? "wait" : r.correct ? "ok" : "no";
+    return `<span class="mark ${cls}" title="سؤال ${i + 1}">${i + 1} ${icon}</span>`;
+  }).join("");
+  const banner = pending
+    ? `<div class="result-banner wait">تم التسليم ✓ — إجاباتك المقالية مستنية تصحيح المشرف</div>`
+    : `<div class="result-banner ${result.passed ? "pass" : "fail"}">
+        ${result.passed ? "أحسنت! لقد اجتزت الاختبار 🎉" : "لم تحقق النسبة المطلوبة، راجع الدروس وحاول مرة أخرى"}
+      </div>`;
   body.innerHTML = `
     <h2>${esc(test.title)}</h2>
-    <div class="result-banner ${result.passed ? "pass" : "fail"}">
-      ${result.passed ? "أحسنت! لقد اجتزت الاختبار 🎉" : "لم تحقق النسبة المطلوبة، راجع الدروس وحاول مرة أخرى"}
-    </div>
-    <p style="text-align:center; font-size:.95rem;">
-      عدد الإجابات الصحيحة: <strong>${result.correct_count}</strong> من ${result.total_questions}<br>
-      النسبة: <strong>${result.score}%</strong>
+    ${banner}
+    <p style="text-align:center; font-size:.95rem; line-height:1.9;">
+      ${pending
+        ? `درجتك في الأسئلة اللي اتصححت لوحدها: <strong>${result.score}%</strong><br>
+           <span style="color:var(--ink-soft); font-size:.85rem;">النتيجة النهائية هتظهر بعد التصحيح، وتقدر تشوفها من زرار "📄 نتيجتي".</span>`
+        : `النسبة: <strong>${result.score}%</strong> — النجاح من ${test.pass_percent}%`}
     </p>
+    ${marks ? `<div class="marks">${marks}</div>` : ""}
     <div style="text-align:center; margin-top:16px;">
       <button class="tiny-btn" id="closeTestBtn">إغلاق</button>
     </div>
   `;
   body.querySelector("#closeTestBtn").addEventListener("click", () => closeOverlay("testOverlay"));
   if (!(await afterProgress(result))) await refreshProgressQuietly();
+}
+
+// نتيجة آخر محاولة بالتفصيل: إجابتك ودرجة كل سؤال وملاحظة المصحح
+async function openTestResult(testId) {
+  const overlay = document.getElementById("testOverlay");
+  const body = document.getElementById("testModalBody");
+  body.innerHTML = `<p style="text-align:center; color:var(--ink-soft);">جارٍ التحميل...</p>`;
+  overlay.classList.add("show");
+  let r;
+  try {
+    r = await apiFetch(`/tests/${testId}/result`);
+  } catch (err) {
+    if (handleAuthError(err)) { overlay.classList.remove("show"); return; }
+    body.innerHTML = `<p style="color:var(--terracotta); text-align:center;">${esc(err.message)}</p>`;
+    return;
+  }
+  const pending = r.status === "pending";
+  const pts = v => (v === null || v === undefined) ? "—" : String(Math.round(v * 10) / 10);
+  body.innerHTML = `
+    <h2>${esc(r.test)}</h2>
+    ${pending
+      ? `<div class="result-banner wait">⏳ لسه قيد التصحيح</div>`
+      : `<div class="result-banner ${r.passed ? "pass" : "fail"}">${r.passed ? "ناجح ✓" : "لم تحقق النسبة المطلوبة"} — ${r.score}% (النجاح من ${r.pass_percent}%)</div>`}
+    <ol class="answer-review">
+      ${r.answers.map(a => `
+        <li class="${a.correct === null ? "wait" : a.correct ? "ok" : (a.points > 0 ? "part" : "no")}">
+          <div class="q">${esc(a.question)} <span class="q-type">${esc(QTYPE_LABEL[a.type] || "")}</span></div>
+          <div class="a"><span class="muted">إجابتك:</span> ${a.your_answer ? esc(a.your_answer) : '<span class="muted">(فاضية)</span>'}</div>
+          <div class="p">${a.correct === null ? "⏳ مستني التصحيح" : `${pts(a.points)} من ${a.max_points}`}</div>
+          ${a.feedback ? `<div class="fb">💬 ${esc(a.feedback)}</div>` : ""}
+        </li>`).join("")}
+    </ol>
+    <div style="text-align:center; margin-top:16px;">
+      <button class="tiny-btn" id="closeTestBtn">إغلاق</button>
+    </div>`;
+  body.querySelector("#closeTestBtn").addEventListener("click", () => closeOverlay("testOverlay"));
 }
 
 /* ======================= تقرير الطالب ======================= */

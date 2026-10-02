@@ -45,13 +45,22 @@ function buildSubjectsForStage(stageId, studentId) {
          ORDER BY t.id ASC`
       ).all(s.id).map(t => {
         const last = db.prepare(
-          `SELECT score FROM student_test_attempts
+          `SELECT id, score, status FROM student_test_attempts
            WHERE student_id = ? AND test_id = ? ORDER BY id DESC LIMIT 1`
         ).get(studentId, t.id);
+        const types = db.prepare(`SELECT DISTINCT type FROM questions WHERE test_id = ?`).all(t.id).map(r => r.type);
         const everPassed = db.prepare(
           `SELECT 1 FROM student_test_attempts WHERE student_id = ? AND test_id = ? AND passed = 1 LIMIT 1`
         ).get(studentId, t.id);
-        return { ...t, last_score: last ? last.score : null, passed: !!everPassed };
+        return {
+          ...t,
+          last_score: last ? last.score : null,
+          // آخر محاولة فيها مقالي لسه المشرف ما صححهوش
+          pending: !!(last && last.status === "pending"),
+          has_result: !!last,
+          has_essay: types.includes("essay"),
+          passed: !!everPassed,
+        };
       });
 
       return { id: s.id, name: s.name, url: s.url, episodes, books, tests };
