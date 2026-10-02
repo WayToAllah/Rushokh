@@ -205,9 +205,12 @@ router.post("/episodes", (req, res) => {
   }
   const link = safeUrl(req.body.url);
   if (!link.ok) return res.status(400).json({ error: "رابط الحلقة يجب أن يبدأ بـ http:// أو https://" });
+  const summaryLink = safeUrl(req.body.summary_url);
+  if (!summaryLink.ok) return res.status(400).json({ error: "رابط ملف الملخص يجب أن يبدأ بـ http:// أو https://" });
   const info = db.prepare(
-    `INSERT INTO episodes (series_id, title, url, duration, order_index) VALUES (?, ?, ?, ?, ?)`
-  ).run(series_id, title, link.value, text(req.body.duration, 30), nextOrder("episodes", "series_id", series_id));
+    `INSERT INTO episodes (series_id, title, url, duration, summary, summary_url, order_index) VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).run(series_id, title, link.value, text(req.body.duration, 30), text(req.body.summary, 50000), summaryLink.value,
+        nextOrder("episodes", "series_id", series_id));
   res.status(201).json({ id: Number(info.lastInsertRowid), title });
 });
 
@@ -216,6 +219,8 @@ router.patch("/episodes/:id", (req, res) => {
     title: required("عنوان الحلقة", 200),
     url: urlField("رابط الحلقة"),
     duration: optional(30),
+    summary: optional(50000),
+    summary_url: urlField("رابط ملف الملخص"),
   }));
 });
 

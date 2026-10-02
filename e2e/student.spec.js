@@ -27,7 +27,7 @@ test.describe("صفحة الطالب", () => {
     await expect(page.getByText("1 من 2 حلقة")).toBeVisible();
   });
 
-  test("حلقة ليها فيديو وكتاب ليه ملف: الأزرار بتشتغل، وفتح الفيديو مابيغيّرش حالة الحلقة", async ({ page, request }) => {
+  test("حلقة ليها فيديو وكتاب ليه ملف: الدرس بيفتح في صفحته، والرجوع بيرجّع للمنهج من غير ما الحالة تتغير", async ({ page, request }) => {
     const admin = await apiLogin(request, "admin@rasokh.test", "admin123");
     const s = await apiRegister(request);
     const cur = await (await request.get("/api/curriculum", { headers: { Authorization: `Bearer ${s.token}` } })).json();
@@ -39,9 +39,11 @@ test.describe("صفحة الطالب", () => {
 
     await loginViaUi(page, s.email, s.password);
     const epRow = () => page.locator(".item-row", { hasText: ep.title });
-    await epRow().locator("[data-view]").click();
-    await expect(page.locator("#viewerOverlay iframe")).toBeVisible();
-    await page.locator("#viewerClose").click();
+    await epRow().getByRole("link", { name: ep.title, exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`#lesson/${ep.id}$`));
+    await expect(page.locator("#lessonPlayer iframe")).toBeVisible();
+    await page.goBack();
+    await expect(page.locator("#lessonRoot")).toBeHidden();
     await expect(epRow().locator(".tiny-btn")).toHaveText("علّمتها مسموعة");
     await epRow().locator(".tiny-btn").click();
     await expect(epRow().locator(".tiny-btn")).toHaveText("✓ اتسمعت");

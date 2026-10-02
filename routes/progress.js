@@ -57,7 +57,12 @@ router.get("/me/report", (req, res) => {
 
   const episodes = db.prepare(
     `SELECT e.id, e.title, s.name AS series_name, subj.name AS subject_name,
-            COALESCE(p.listened, 0) AS listened
+            CASE WHEN COALESCE(p.listened, 0) = 1 AND NOT EXISTS (
+              -- الحلقة ما تتحسبش خلصت لو عليها اختبار لسه ما اتنجحش فيه
+              SELECT 1 FROM tests t WHERE t.episode_id = e.id
+                AND EXISTS (SELECT 1 FROM questions q WHERE q.test_id = t.id)
+                AND NOT EXISTS (SELECT 1 FROM student_test_attempts a WHERE a.test_id = t.id AND a.student_id = p.student_id AND a.passed = 1)
+            ) THEN 1 ELSE 0 END AS listened
      FROM episodes e
      JOIN series s ON s.id = e.series_id
      JOIN stage_subject ss ON ss.id = s.stage_subject_id

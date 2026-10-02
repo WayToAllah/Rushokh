@@ -24,6 +24,7 @@
     --shadow: 0 8px 24px rgba(14,51,47,.10);
   }
   *{box-sizing:border-box;}
+  [hidden]{display:none !important;}
   html{scroll-behavior:smooth;}
   body{
     margin:0;
@@ -450,6 +451,69 @@
   .pw-msg.err{ display:block; background:rgba(168,80,58,.1); color:var(--terracotta); }
   .viewer-foot{ font-size:.75rem; color:var(--ink-soft); margin:10px 0 0; }
   .viewer-foot a{ color:var(--teal-700); }
+
+  /* ===== صفحة الدرس ===== */
+  .lesson{ max-width:960px; margin:24px auto 0; padding:0 16px; }
+  .lesson[hidden]{ display:none; }
+  .crumbs{ font-size:.8rem; color:var(--ink-soft); display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .crumbs a{ color:var(--teal-700); font-weight:600; text-decoration:none; }
+  .crumbs a:hover{ text-decoration:underline; }
+  .lesson h1{ font-size:1.7rem; color:var(--teal-900); margin:10px 0 4px; line-height:1.4; }
+  .lesson-meta{ font-size:.8rem; color:var(--ink-soft); margin-bottom:14px; }
+  .lesson-player{ margin-bottom:14px; box-shadow:var(--shadow); }
+  .lesson-noplayer{ background:var(--bg-raised); border:1px dashed var(--line); border-radius:12px; padding:26px; text-align:center; color:var(--ink-soft); margin-bottom:14px; }
+  .lesson-noplayer a{ color:var(--teal-700); font-weight:600; }
+  .lesson-bar{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:18px; }
+  .lesson-bar .spacer{ flex:1; }
+  .status-chip{ font-size:.75rem; padding:4px 12px; border-radius:999px; background:var(--line-soft); color:var(--ink-soft); }
+  .status-chip.done{ background:rgba(124,150,131,.22); color:var(--teal-900); font-weight:600; }
+  .status-chip.wait{ background:rgba(228,199,126,.35); color:#6b5320; }
+  .nav-btn{ background:var(--bg-raised); border:1px solid var(--line); color:var(--teal-900); padding:7px 12px; border-radius:8px; font-size:.78rem; text-decoration:none; max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .nav-btn:hover{ border-color:var(--teal-700); }
+  .lesson-tabs{ display:flex; gap:4px; border-bottom:1px solid var(--line); overflow-x:auto; scrollbar-width:none; }
+  .lesson-tabs button{ background:none; border:0; border-bottom:3px solid transparent; padding:10px 14px; font-size:.88rem; color:var(--ink-soft); white-space:nowrap; margin-bottom:-1px; }
+  .lesson-tabs button[aria-selected="true"]{ color:var(--teal-900); border-bottom-color:var(--gold); font-weight:600; }
+  .lesson-tabs .count{ display:inline-block; min-width:18px; font-size:.68rem; padding:0 6px; border-radius:999px; background:var(--line-soft); margin-inline-start:4px; }
+  .lesson-panel{ background:var(--bg-raised); border:1px solid var(--line); border-top:0; border-radius:0 0 12px 12px; padding:20px; min-height:180px; }
+  .summary-text{ white-space:pre-wrap; line-height:2; font-size:.95rem; margin:0; }
+  .panel-empty{ color:var(--ink-soft); font-size:.88rem; text-align:center; padding:24px 0; margin:0; }
+  .attach-list{ display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; padding-top:14px; border-top:1px solid var(--line-soft); }
+  .attach{ display:inline-flex; align-items:center; gap:6px; background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:8px 12px; font-size:.82rem; color:var(--teal-900); text-decoration:none; }
+  .attach:hover{ border-color:var(--teal-700); }
+  .lesson-panel .test-cta:first-child{ margin-top:0; }
+  .note-area, .comment-input{ width:100%; padding:12px; border:1px solid var(--line); border-radius:10px; font-family:inherit; font-size:.92rem; line-height:1.9; resize:vertical; background:#fff; }
+  .note-area{ min-height:220px; }
+  .note-status{ font-size:.75rem; color:var(--ink-soft); margin-top:6px; min-height:1.2em; }
+  .comment-form{ margin-bottom:18px; }
+  .comment-form .row{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:8px; }
+  .comment-form small{ color:var(--ink-soft); font-size:.72rem; }
+  .comment{ padding:12px 0; border-top:1px solid var(--line-soft); }
+  .comment .head{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:.8rem; }
+  .comment .who{ font-weight:600; color:var(--teal-900); }
+  .comment .when{ color:var(--ink-soft); font-size:.72rem; }
+  .comment .badge{ font-size:.66rem; padding:1px 8px; border-radius:999px; background:var(--teal-700); color:#fff; }
+  .comment .badge.pin{ background:var(--gold); color:#26200F; }
+  .comment .text{ white-space:pre-wrap; line-height:1.9; font-size:.9rem; margin:4px 0 6px; }
+  .comment .actions{ display:flex; gap:12px; }
+  .link-btn{ background:none; border:0; padding:0; color:var(--teal-700); font-size:.76rem; }
+  .link-btn.danger{ color:var(--terracotta); }
+  .comment .replies{ margin-inline-start:22px; padding-inline-start:12px; border-inline-start:2px solid var(--line-soft); }
+  .comment .replies .comment{ border-top:0; padding:8px 0; }
+  .comment.admin > .text{ background:rgba(31,89,81,.06); border-radius:8px; padding:6px 10px; }
+  .reply-form{ margin-top:8px; }
+  .reply-form .row{ display:flex; gap:8px; margin-top:6px; }
+  .ep-status{ font-size:.7rem; }
+  .ep-status.wait{ color:#6b5320; }
+  .ep-status.ok{ color:var(--teal-700); }
+  a.item-title-link{ color:inherit; text-decoration:none; }
+  a.item-title-link:hover{ color:var(--teal-700); text-decoration:underline; }
+  @media (max-width:640px){
+    .lesson h1{ font-size:1.35rem; }
+    .lesson-panel{ padding:14px; }
+    .nav-btn{ max-width:46vw; }
+    .lesson-tabs{ gap:0; }
+    .lesson-tabs button{ padding:10px 7px; font-size:.78rem; flex:1 0 auto; }
+  }
   @media (prefers-reduced-motion: reduce){ .toast{ transition:none; } }
 
   @media print{
@@ -485,6 +549,9 @@
 </div>
 
 <main class="curriculum" id="curriculumRoot"></main>
+
+<!-- صفحة الدرس: بتظهر لما الرابط يبقى #lesson/رقم -->
+<main class="lesson" id="lessonRoot" hidden></main>
 
 <button class="fab-cert" id="btnCertificate">🏆 شهادة المرحلة</button>
 
@@ -633,6 +700,14 @@ function openViewer(url, title) {
   const frame = document.getElementById("viewerFrame");
   frame.className = "viewer-frame " + media.ratio;
   frame.innerHTML = "";
+  frame.appendChild(mediaElement(media, title));
+  document.getElementById("viewerTitle").textContent = title;
+  document.getElementById("viewerExternal").href = url;
+  document.getElementById("viewerOverlay").classList.add("show");
+}
+
+// عنصر العرض نفسه (iframe ليوتيوب/درايف، أو video/audio للملفات المباشرة)
+function mediaElement(media, title) {
   let el;
   if (media.kind === "iframe") {
     el = document.createElement("iframe");
@@ -647,10 +722,7 @@ function openViewer(url, title) {
     el.controls = true;
     el.preload = "metadata";
   }
-  frame.appendChild(el);
-  document.getElementById("viewerTitle").textContent = title;
-  document.getElementById("viewerExternal").href = url;
-  document.getElementById("viewerOverlay").classList.add("show");
+  return el;
 }
 
 function closeViewer() {
@@ -717,6 +789,8 @@ function toast(msg) {
 /* ======================= تسجيل الدخول ======================= */
 function showLogin(message) {
   document.getElementById("curriculumRoot").innerHTML = "";
+  lesson = null;
+  document.getElementById("lessonRoot").innerHTML = "";
   document.getElementById("sanadChain").innerHTML = "";
   const box = document.getElementById("loginError");
   if (message) { box.textContent = message; box.style.display = "block"; }
@@ -754,6 +828,7 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
     document.getElementById("loginOverlay").classList.remove("show");
     viewStageId = null;
     await loadCurriculum();
+    await route();
   } catch (err) {
     // البريد لسه ما اتأكدش: شاشة الكود في الصفحة الرئيسية
     if (err.data && err.data.needs_verification) {
@@ -809,6 +884,7 @@ async function afterProgress(result) {
     toast(`🎉 مبارك! أتممت المرحلة وانتقلت إلى مرحلة ${result.advanced_to}`);
     viewStageId = null;
     await loadCurriculum();
+    if (lesson) await loadLesson(lesson.id, { keepTab: true });
     return true;
   }
   return false;
@@ -818,7 +894,10 @@ async function afterProgress(result) {
 function subjectPercent(subject) {
   let total = 0, done = 0;
   subject.series.forEach(s => {
-    s.episodes.forEach(e => { total++; if (e.listened) done++; });
+    s.episodes.forEach(e => {
+      total++; if (e.listened) done++;
+      (e.tests || []).forEach(t => { total++; if (t.passed) done++; });
+    });
     s.books.forEach(b => { total++; if (b.total_pages === 0 || b.current_page >= b.total_pages) done++; });
     s.tests.forEach(t => { total++; if (t.passed) done++; });
   });
@@ -944,9 +1023,17 @@ function renderCurriculum() {
         const row = document.createElement("div");
         row.className = "item-row";
         const href = ep.url ? safeHref(ep.url) : null;
+        // الدرس بيفتح في صفحته (فيديو + ملخص + أسئلة + مناقشة + ملاحظات)
+        const lessonHref = `#lesson/${ep.id}`;
+        const epTests = ep.tests || [];
+        const testState = !epTests.length ? ""
+          : ep.done ? `<span class="ep-status ok">✓ خلص بأسئلته</span>`
+          : epTests.some(t => t.pending) ? `<span class="ep-status wait">⏳ أسئلته قيد التصحيح</span>`
+          : `<span class="ep-status wait">📝 عليه أسئلة</span>`;
+        const meta = [esc(ep.duration || ""), href ? "" : "لا يوجد رابط بعد", testState].filter(Boolean).join(" · ");
         row.innerHTML = `
-          ${openerHtml(ep.url, "▶️", ep.title)}
-          <div class="item-title">${esc(ep.title)}<span class="meta">${esc(ep.duration || "")}${href ? "" : (ep.duration ? " · " : "") + "لا يوجد رابط بعد"}</span></div>
+          <a class="item-icon link" href="${lessonHref}" title="افتح الدرس" aria-label="افتح الدرس: ${esc(ep.title)}">▶️</a>
+          <div class="item-title"><a class="item-title-link" href="${lessonHref}">${esc(ep.title)}</a><span class="meta">${meta}</span></div>
           <button class="tiny-btn ${ep.listened ? "done" : ""}" aria-pressed="${ep.listened ? "true" : "false"}"
             title="${ep.listened ? "دوس تاني لو عايز تلغي إنها اتسمعت" : "دوس هنا بعد ما تسمع الحلقة"}">${ep.listened ? "✓ اتسمعت" : "علّمتها مسموعة"}</button>
         `;
@@ -973,27 +1060,7 @@ function renderCurriculum() {
         block.appendChild(row);
       });
 
-      series.tests.forEach(test => {
-        const tried = test.last_score !== null && test.last_score !== undefined;
-        const cta = document.createElement("div");
-        cta.className = "test-cta";
-        const status = test.pending
-          ? `⏳ قيد التصحيح — النتيجة هتظهر بعد ما المشرف يصحح الأسئلة المقالية`
-          : test.passed
-            ? `✓ ناجح — آخر نتيجة: ${test.last_score}%`
-            : tried ? `آخر نتيجة: ${test.last_score}% — النجاح من ${test.pass_percent}%` : `لم يُؤدَّ بعد — النجاح من ${test.pass_percent}%`;
-        cta.innerHTML = `
-          <div class="txt">${esc(test.title)}<small>${status}</small></div>
-          <div class="test-actions">
-            ${test.has_result ? `<button class="tiny-btn outline" data-result>📄 نتيجتي</button>` : ""}
-            <button class="tiny-btn" data-start>${tried ? "إعادة الاختبار" : "بدء الاختبار"}</button>
-          </div>
-        `;
-        cta.querySelector("[data-start]").addEventListener("click", () => openTest(test.id));
-        const resultBtn = cta.querySelector("[data-result]");
-        if (resultBtn) resultBtn.addEventListener("click", () => openTestResult(test.id));
-        block.appendChild(cta);
-      });
+      series.tests.forEach(test => block.appendChild(testCtaElement(test)));
 
       body.appendChild(block);
     });
@@ -1003,6 +1070,29 @@ function renderCurriculum() {
     bindViewers(card);
     root.appendChild(card);
   });
+}
+
+// كارت الاختبار (في المنهج وفي صفحة الدرس)
+function testCtaElement(test) {
+  const tried = test.last_score !== null && test.last_score !== undefined;
+  const cta = document.createElement("div");
+  cta.className = "test-cta";
+  const status = test.pending
+    ? `⏳ قيد التصحيح — النتيجة هتظهر بعد ما المشرف يصحح الأسئلة المقالية`
+    : test.passed
+      ? `✓ ناجح — آخر نتيجة: ${test.last_score}%`
+      : tried ? `آخر نتيجة: ${test.last_score}% — النجاح من ${test.pass_percent}%` : `لم يُؤدَّ بعد — النجاح من ${test.pass_percent}%`;
+  cta.innerHTML = `
+    <div class="txt">${esc(test.title)}<small>${status}</small></div>
+    <div class="test-actions">
+      ${test.has_result ? `<button class="tiny-btn outline" data-result>📄 نتيجتي</button>` : ""}
+      <button class="tiny-btn" data-start>${tried ? "إعادة الاختبار" : "بدء الاختبار"}</button>
+    </div>
+  `;
+  cta.querySelector("[data-start]").addEventListener("click", () => openTest(test.id));
+  const resultBtn = cta.querySelector("[data-result]");
+  if (resultBtn) resultBtn.addEventListener("click", () => openTestResult(test.id));
+  return cta;
 }
 
 /* ======================= تحديث الحلقة ======================= */
@@ -1051,6 +1141,7 @@ async function refreshProgressQuietly() {
     curriculumData = await apiFetch("/curriculum");
     renderSanad();
     renderCurriculum();
+    if (lesson) await loadLesson(lesson.id, { keepTab: true });
   } catch (err) { handleAuthError(err); }
 }
 
@@ -1330,10 +1421,336 @@ document.getElementById("passwordForm").addEventListener("submit", async (e) => 
 });
 document.getElementById("btnCertificate").addEventListener("click", openCertificate);
 
+/* ======================= صفحة الدرس (#lesson/رقم) ======================= */
+// الدرس بيفتح في صفحة لوحده: الفيديو فوق، وتحته تبويبات الملخص وأسئلة الدرس والمناقشة وملاحظاتي.
+// زرار الرجوع في المتصفح بيرجّع للمنهج في نفس المكان.
+let lesson = null;            // بيانات الدرس المفتوح
+let lessonTab = "summary";
+let currentView = "curriculum";
+let curriculumScroll = 0;
+let noteTimer = null;
+
+const LESSON_TABS = [
+  ["summary", "📄 الملخص"],
+  ["tests", "📝 أسئلة الدرس"],
+  ["discussion", "💬 المناقشة"],
+  ["notes", "✏️ ملاحظاتي"],
+];
+
+function lessonIdFromHash() {
+  const m = location.hash.match(/^#lesson\/(\d+)/);
+  return m ? Number(m[1]) : null;
+}
+
+function formatDate(s) {
+  if (!s) return "";
+  const d = new Date(String(s).replace(" ", "T") + "Z");
+  return isNaN(d) ? s : d.toLocaleString("ar-EG", { dateStyle: "medium", timeStyle: "short" });
+}
+
+async function route() {
+  if (!authToken) return;
+  await flushNote();
+  const id = lessonIdFromHash();
+  const isLesson = !!id;
+  if (isLesson && currentView === "curriculum") curriculumScroll = window.scrollY;
+  document.getElementById("lessonRoot").hidden = !isLesson;
+  document.getElementById("curriculumRoot").hidden = isLesson;
+  document.querySelector(".sanad-wrap").hidden = isLesson;
+  document.getElementById("btnCertificate").hidden = isLesson;
+
+  if (isLesson) {
+    currentView = "lesson";
+    await loadLesson(id);
+  } else {
+    const wasLesson = currentView === "lesson";
+    currentView = "curriculum";
+    lesson = null;
+    document.getElementById("lessonRoot").innerHTML = "";
+    document.title = "رسوخ | لوحة الطالب";
+    if (wasLesson) window.scrollTo(0, curriculumScroll);
+  }
+}
+
+async function loadLesson(id, { keepTab = false } = {}) {
+  const root = document.getElementById("lessonRoot");
+  if (!keepTab) {
+    lessonTab = "summary";
+    root.innerHTML = `<p class="panel-empty">جارٍ تحميل الدرس...</p>`;
+    window.scrollTo(0, 0);
+  }
+  let data;
+  try {
+    data = await apiFetch(`/lessons/${id}`);
+  } catch (err) {
+    if (handleAuthError(err)) return;
+    lesson = null;
+    root.innerHTML = `<p class="panel-empty" style="color:var(--terracotta);">${esc(err.message)}</p>
+      <p style="text-align:center;"><a href="#" class="nav-btn">→ رجوع للمنهج</a></p>`;
+    return;
+  }
+  if (lessonIdFromHash() !== data.id) return; // الطالب راح لدرس تاني وإحنا بنحمّل
+  const samePage = keepTab && lesson && lesson.id === data.id && document.getElementById("lessonPanel");
+  lesson = data;
+  if (samePage) {
+    // تحديث بعد تقدم (اختبار مثلاً): من غير ما نعيد الفيديو، ومن غير ما نمسح اللي بيتكتب
+    renderLessonBar();
+    renderLessonTabs();
+    if (lessonTab === "tests" || lessonTab === "summary") renderLessonPanel();
+  } else {
+    renderLesson();
+  }
+}
+
+function renderLesson() {
+  const L = lesson;
+  const root = document.getElementById("lessonRoot");
+  const href = L.url ? safeHref(L.url) : null;
+  const media = href && window.RasokhMedia ? RasokhMedia.embedFor(href) : null;
+  document.title = `${L.title} | رسوخ`;
+  root.innerHTML = `
+    <nav class="crumbs" aria-label="مكان الدرس">
+      <a href="#">→ رجوع للمنهج</a><span aria-hidden="true">·</span>
+      <span>${esc(L.stage_name)} / ${esc(L.subject_name)} / ${esc(L.series_name)}</span>
+    </nav>
+    <h1>${esc(L.title)}</h1>
+    <div class="lesson-meta">الدرس ${L.position} من ${L.count}${L.duration ? " · " + esc(L.duration) : ""}</div>
+    ${media
+      ? `<div class="viewer-frame lesson-player ${media.ratio}" id="lessonPlayer"></div>`
+      : `<div class="lesson-noplayer">${href
+          ? `الدرس ده بيتفتح برّه الموقع: <a href="${esc(href)}" target="_blank" rel="noopener noreferrer">افتح الدرس ↗</a>`
+          : "لسه مفيش فيديو للدرس ده."}</div>`}
+    <div class="lesson-bar" id="lessonBar"></div>
+    <div class="lesson-tabs" role="tablist" id="lessonTabs"></div>
+    <div class="lesson-panel" role="tabpanel" id="lessonPanel"></div>`;
+  if (media) document.getElementById("lessonPlayer").appendChild(mediaElement(media, L.title));
+  renderLessonBar();
+  renderLessonTabs();
+  renderLessonPanel();
+}
+
+function renderLessonBar() {
+  const L = lesson;
+  const bar = document.getElementById("lessonBar");
+  const hasTests = L.tests.length > 0;
+  const chip = L.done
+    ? `<span class="status-chip done">✓ الدرس خلص</span>`
+    : L.listened && hasTests
+      ? `<span class="status-chip wait">${L.tests.some(t => t.pending) ? "⏳ أسئلة الدرس قيد التصحيح" : "📝 فاضل تنجح في أسئلة الدرس"}</span>`
+      : "";
+  bar.innerHTML = `
+    <button class="tiny-btn ${L.listened ? "done" : ""}" id="lessonListen" aria-pressed="${L.listened ? "true" : "false"}"
+      title="${L.listened ? "دوس تاني لو عايز تلغي إنها اتسمعت" : "دوس هنا بعد ما تسمع الدرس"}">${L.listened ? "✓ اتسمعت" : "علّمتها مسموعة"}</button>
+    ${chip}
+    <span class="spacer"></span>
+    ${L.prev ? `<a class="nav-btn" href="#lesson/${L.prev.id}" title="${esc(L.prev.title)}">→ السابق: ${esc(L.prev.title)}</a>` : ""}
+    ${L.next ? `<a class="nav-btn" href="#lesson/${L.next.id}" title="${esc(L.next.title)}">التالي: ${esc(L.next.title)} ←</a>` : ""}`;
+  bar.querySelector("#lessonListen").addEventListener("click", toggleLessonListened);
+}
+
+async function toggleLessonListened() {
+  const btn = document.getElementById("lessonListen");
+  btn.disabled = true;
+  const newState = !lesson.listened;
+  try {
+    const result = await apiFetch("/progress/episode", {
+      method: "POST",
+      body: JSON.stringify({ episode_id: lesson.id, listened: newState }),
+    });
+    if (newState && lesson.tests.some(t => !t.passed)) {
+      lessonTab = "tests"; // نوديه على الأسئلة على طول
+      toast("تمام ✓ فاضل تحل أسئلة الدرس عشان يتحسب خلص");
+    }
+    if (!(await afterProgress(result))) await refreshProgressQuietly();
+  } catch (err) {
+    if (!handleAuthError(err)) toast(err.message);
+    btn.disabled = false;
+  }
+}
+
+function renderLessonTabs() {
+  const counts = { tests: lesson.tests.length, discussion: lesson.comments_count };
+  const el = document.getElementById("lessonTabs");
+  el.innerHTML = LESSON_TABS.map(([key, label]) => `
+    <button role="tab" data-tab="${key}" aria-selected="${key === lessonTab}">${label}${counts[key] ? `<span class="count">${counts[key]}</span>` : ""}</button>`).join("");
+  el.querySelectorAll("button").forEach(b => b.addEventListener("click", async () => {
+    if (b.dataset.tab === lessonTab) return;
+    await flushNote();
+    lessonTab = b.dataset.tab;
+    renderLessonTabs();
+    renderLessonPanel();
+  }));
+}
+
+function attachHtml(url, label) {
+  const href = safeHref(url);
+  if (!href) return "";
+  if (window.RasokhMedia && RasokhMedia.embedFor(href)) {
+    return `<button class="attach" data-view="${esc(href)}" data-title="${esc(label)}">${esc(label)}</button>`;
+  }
+  return `<a class="attach" href="${esc(href)}" target="_blank" rel="noopener noreferrer">${esc(label)} ↗</a>`;
+}
+
+function renderLessonPanel() {
+  const L = lesson;
+  const panel = document.getElementById("lessonPanel");
+  panel.setAttribute("aria-label", (LESSON_TABS.find(t => t[0] === lessonTab) || [])[1] || "");
+
+  if (lessonTab === "summary") {
+    const files = [];
+    if (L.summary_url) files.push(attachHtml(L.summary_url, "📄 ملف الملخص"));
+    L.books.forEach(b => { if (b.file_url) files.push(attachHtml(b.file_url, "📖 " + b.title)); });
+    panel.innerHTML = `
+      ${L.summary ? `<p class="summary-text">${esc(L.summary)}</p>` : `<p class="panel-empty">لسه مفيش ملخص مكتوب للدرس ده.</p>`}
+      ${files.filter(Boolean).length ? `<div class="attach-list">${files.join("")}</div>` : ""}`;
+    bindViewers(panel);
+  } else if (lessonTab === "tests") {
+    if (!L.tests.length) {
+      panel.innerHTML = `<p class="panel-empty">مفيش أسئلة على الدرس ده. لو فيه اختبار على السلسلة كلها هتلاقيه في صفحة المنهج.</p>`;
+      return;
+    }
+    panel.innerHTML = `<p style="font-size:.82rem; color:var(--ink-soft); margin:0 0 12px;">لازم تنجح في أسئلة الدرس عشان يتحسب إنك خلّصته.</p>`;
+    L.tests.forEach(t => panel.appendChild(testCtaElement(t)));
+  } else if (lessonTab === "discussion") {
+    renderDiscussion(panel);
+  } else if (lessonTab === "notes") {
+    panel.innerHTML = `
+      <label class="pw-label" for="noteText">ملاحظاتك على الدرس — محدش غيرك بيشوفها، وبتتحفظ لوحدها وإنت بتكتب</label>
+      <textarea id="noteText" class="note-area" maxlength="10000" placeholder="اكتب الفوايد اللي خدتها، أو أسئلة ترجعلها...">${esc(L.note)}</textarea>
+      <div class="note-status" id="noteStatus">${L.note_updated_at ? "آخر حفظ: " + esc(formatDate(L.note_updated_at)) : ""}</div>`;
+    const area = panel.querySelector("#noteText");
+    area.addEventListener("input", () => {
+      document.getElementById("noteStatus").textContent = "...";
+      clearTimeout(noteTimer);
+      noteTimer = setTimeout(saveNote, 900);
+    });
+    area.addEventListener("blur", flushNote);
+  }
+}
+
+async function saveNote() {
+  noteTimer = null;
+  const area = document.getElementById("noteText");
+  const status = document.getElementById("noteStatus");
+  if (!area || !lesson) return;
+  const body = area.value;
+  try {
+    const r = await apiFetch(`/lessons/${lesson.id}/note`, { method: "PUT", body: JSON.stringify({ body }) });
+    lesson.note = body;
+    lesson.note_updated_at = r.updated_at;
+    if (status) status.textContent = "اتحفظت ✓";
+  } catch (err) {
+    if (!handleAuthError(err) && status) status.textContent = "ما اتحفظتش: " + err.message;
+  }
+}
+
+// لو فيه كتابة لسه ما اتحفظتش (قبل ما يغيّر التبويب أو الدرس)
+async function flushNote() {
+  if (noteTimer) { clearTimeout(noteTimer); await saveNote(); }
+}
+
+/* ----- المناقشة ----- */
+function renderDiscussion(panel) {
+  panel.innerHTML = `
+    <form class="comment-form" id="commentForm" novalidate>
+      <label for="commentText" class="pw-label">اسأل أو شارك فايدة عن الدرس</label>
+      <textarea id="commentText" class="comment-input" rows="3" maxlength="2000" placeholder="اكتب سؤالك أو تعليقك..."></textarea>
+      <div class="row">
+        <small>تعليقك بيظهر لكل طلبة الدرس والمشرف.</small>
+        <button class="tiny-btn" type="submit">نشر</button>
+      </div>
+    </form>
+    <div id="commentsList"><p class="panel-empty">جارٍ التحميل...</p></div>`;
+  panel.querySelector("#commentForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const area = document.getElementById("commentText");
+    if (await postComment(area.value, null, e.submitter || e.target.querySelector("button"))) area.value = "";
+  });
+  loadComments();
+}
+
+async function postComment(text, parentId, btn) {
+  if (!text.trim()) { toast("اكتب تعليقك الأول."); return false; }
+  if (btn) btn.disabled = true;
+  try {
+    await apiFetch(`/lessons/${lesson.id}/comments`, {
+      method: "POST",
+      body: JSON.stringify({ body: text, parent_id: parentId }),
+    });
+    await loadComments();
+    return true;
+  } catch (err) {
+    if (!handleAuthError(err)) toast(err.message);
+    return false;
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function commentHtml(c, top) {
+  return `
+    <div class="comment ${c.is_admin ? "admin" : ""}" data-id="${c.id}">
+      <div class="head">
+        ${c.is_admin ? `<span class="badge">المشرف</span>` : `<span class="who">${esc(c.author)}</span>`}
+        ${c.pinned ? `<span class="badge pin">📌 مثبّت</span>` : ""}
+        <span class="when">${esc(formatDate(c.created_at))}</span>
+      </div>
+      <div class="text">${esc(c.body)}</div>
+      <div class="actions">
+        ${top ? `<button class="link-btn" data-reply="${c.id}">↩ رد</button>` : ""}
+        ${c.mine ? `<button class="link-btn danger" data-del="${c.id}">مسح</button>` : ""}
+      </div>
+      ${top && c.replies.length ? `<div class="replies">${c.replies.map(r => commentHtml(r, false)).join("")}</div>` : ""}
+      ${top ? `<div class="reply-slot"></div>` : ""}
+    </div>`;
+}
+
+async function loadComments() {
+  const list = document.getElementById("commentsList");
+  if (!list || !lesson) return;
+  let items;
+  try {
+    items = await apiFetch(`/lessons/${lesson.id}/comments`);
+  } catch (err) {
+    if (!handleAuthError(err)) list.innerHTML = `<p class="panel-empty" style="color:var(--terracotta);">${esc(err.message)}</p>`;
+    return;
+  }
+  lesson.comments_count = items.reduce((n, c) => n + 1 + c.replies.length, 0);
+  renderLessonTabs();
+  list.innerHTML = items.length
+    ? items.map(c => commentHtml(c, true)).join("")
+    : `<p class="panel-empty">لسه مفيش تعليقات. ابدأ إنت بسؤال 👆</p>`;
+
+  list.querySelectorAll("[data-reply]").forEach(btn => btn.addEventListener("click", () => {
+    const slot = btn.closest(".comment").querySelector(".reply-slot");
+    if (slot.innerHTML) { slot.innerHTML = ""; return; }
+    slot.innerHTML = `
+      <form class="reply-form" novalidate>
+        <textarea class="comment-input" rows="2" maxlength="2000" placeholder="اكتب ردك..." aria-label="ردك"></textarea>
+        <div class="row"><button class="tiny-btn" type="submit">رد</button><button class="tiny-btn outline" type="button" data-cancel>إلغاء</button></div>
+      </form>`;
+    const form = slot.querySelector("form");
+    form.querySelector("textarea").focus();
+    form.querySelector("[data-cancel]").addEventListener("click", () => { slot.innerHTML = ""; });
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      postComment(form.querySelector("textarea").value, Number(btn.dataset.reply), form.querySelector("[type=submit]"));
+    });
+  }));
+  list.querySelectorAll("[data-del]").forEach(btn => btn.addEventListener("click", async () => {
+    if (!(await RasokhDialog.confirm("تمسح تعليقك؟ الردود اللي عليه هتتمسح معاه.", { title: "مسح التعليق", okText: "مسح", danger: true }))) return;
+    try {
+      await apiFetch(`/lessons/comments/${btn.dataset.del}`, { method: "DELETE" });
+      await loadComments();
+    } catch (err) { if (!handleAuthError(err)) toast(err.message); }
+  }));
+}
+
 /* ======================= بداية الصفحة ======================= */
+window.addEventListener("hashchange", route);
 if (authToken) {
   document.getElementById("loginOverlay").classList.remove("show");
-  loadCurriculum();
+  loadCurriculum().then(route);
 } else {
   showLogin();
 }

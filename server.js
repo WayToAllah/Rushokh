@@ -90,6 +90,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/curriculum", curriculumRoutes);
 app.use("/api/progress", progressRoutes);
 app.use("/api/tests", testRoutes);
+app.use("/api/lessons", require("./routes/lessons"));
+app.use("/api/admin/discussions", require("./routes/admin/discussions"));
 app.use("/api/account", accountRoutes);
 app.use("/api/admin/content", adminContentRoutes);
 app.use("/api/admin/tests", adminTestRoutes);

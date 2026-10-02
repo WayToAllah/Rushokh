@@ -87,7 +87,9 @@ function adminQuestion(q) {
 // ---------- عرض كل الاختبارات مع أسئلتها ----------
 router.get("/", (req, res) => {
   const tests = db.prepare(
-    `SELECT t.*, s.name AS series_name FROM tests t JOIN series s ON s.id = t.series_id ORDER BY t.id ASC`
+    `SELECT t.*, s.name AS series_name, e.title AS episode_title
+     FROM tests t JOIN series s ON s.id = t.series_id LEFT JOIN episodes e ON e.id = t.episode_id
+     ORDER BY t.id ASC`
   ).all();
   const withQuestions = tests.map(t => ({
     ...t,
@@ -97,16 +99,27 @@ router.get("/", (req, res) => {
   res.json(withQuestions);
 });
 
-// ---------- إنشاء اختبار جديد لسلسلة ----------
+// الحلقة لازم تكون من نفس السلسلة. فاضي = اختبار على السلسلة كلها
+function episodeFor(seriesId, episodeId) {
+  if (episodeId === undefined || episodeId === null || episodeId === "") return { value: null };
+  const ep = db.prepare(`SELECT id, series_id FROM episodes WHERE id = ?`).get(Number(episodeId));
+  if (!ep || ep.series_id !== Number(seriesId)) return { error: "الحلقة دي مش من نفس السلسلة." };
+  return { value: ep.id };
+}
+
+// ---------- إنشاء اختبار جديد لسلسلة أو لحلقة منها ----------
+// body: { series_id, title, pass_percent?, episode_id? }
 router.post("/", (req, res) => {
   const { series_id } = req.body;
   const title = text(req.body.title, 200);
   if (!series_id || !title) {
     return res.status(400).json({ error: "السلسلة وعنوان الاختبار مطلوبان." });
   }
+  const ep = episodeFor(series_id, req.body.episode_id);
+  if (ep.error) return res.status(400).json({ error: ep.error });
   const info = db.prepare(
-    `INSERT INTO tests (series_id, title, pass_percent) VALUES (?, ?, ?)`
-  ).run(series_id, title, passPercent(req.body.pass_percent) || 60);
+    `INSERT INTO tests (series_id, title, pass_percent, episode_id) VALUES (?, ?, ?, ?)`
+  ).run(series_id, title, passPercent(req.body.pass_percent) || 60, ep.value);
   res.status(201).json({ id: Number(info.lastInsertRowid), title });
 });
 
@@ -118,7 +131,9 @@ router.patch("/:id", (req, res) => {
   const pass = "pass_percent" in req.body ? passPercent(req.body.pass_percent) : test.pass_percent;
   if (!title) return res.status(400).json({ error: "عنوان الاختبار مطلوب." });
   if (!pass) return res.status(400).json({ error: "نسبة النجاح لازم تكون رقم من 1 لـ 100." });
-  db.prepare(`UPDATE tests SET title = ?, pass_percent = ? WHERE id = ?`).run(title, pass, test.id);
+  const ep = "episode_id" in req.body ? episodeFor(test.series_id, req.body.episode_id) : { value: test.episode_id };
+  if (ep.error) return res.status(400).json({ error: ep.error });
+  db.prepare(`UPDATE tests SET title = ?, pass_percent = ?, episode_id = ? WHERE id = ?`).run(title, pass, ep.value, test.id);
   res.json({ ok: true });
 });
 

@@ -64,6 +64,9 @@ CREATE TABLE IF NOT EXISTS episodes (
   title           TEXT NOT NULL,
   url             TEXT,
   duration        TEXT,
+  -- ملخص / تفريغ الدرس: نص يكتبه المشرف، ورابط ملف (PDF مثلاً) اختياري
+  summary         TEXT,
+  summary_url     TEXT,
   order_index     INTEGER NOT NULL DEFAULT 0,
   FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE CASCADE
 );
@@ -105,6 +108,8 @@ CREATE TABLE IF NOT EXISTS tests (
   series_id       INTEGER NOT NULL,
   title           TEXT NOT NULL,
   pass_percent    INTEGER NOT NULL DEFAULT 60,
+  -- فاضي = اختبار على السلسلة كلها. غير كده = اختبار على حلقة معيّنة (من نفس السلسلة)
+  episode_id      INTEGER REFERENCES episodes(id) ON DELETE CASCADE,
   FOREIGN KEY (series_id) REFERENCES series(id) ON DELETE CASCADE
 );
 
@@ -200,3 +205,31 @@ CREATE TABLE IF NOT EXISTS student_answers (
 CREATE INDEX IF NOT EXISTS idx_answers_attempt ON student_answers(attempt_id);
 
 CREATE INDEX IF NOT EXISTS idx_attempts_student ON student_test_attempts(student_id);
+
+-- ملاحظات الطالب الخاصة على الدرس (محدش غيره بيشوفها)
+CREATE TABLE IF NOT EXISTS student_episode_notes (
+  student_id      INTEGER NOT NULL,
+  episode_id      INTEGER NOT NULL,
+  body            TEXT NOT NULL,
+  updated_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (student_id, episode_id),
+  FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
+  FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE CASCADE
+);
+
+-- مناقشة الدرس: تعليقات الطلبة وردود المشرف (رد واحد مستوى: parent_id بيشاور على تعليق رئيسي)
+CREATE TABLE IF NOT EXISTS episode_comments (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  episode_id      INTEGER NOT NULL,
+  parent_id       INTEGER,
+  student_id      INTEGER,
+  admin_id        INTEGER,
+  body            TEXT NOT NULL,
+  pinned          INTEGER NOT NULL DEFAULT 0,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE CASCADE,
+  FOREIGN KEY (parent_id) REFERENCES episode_comments(id) ON DELETE CASCADE,
+  FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
+  FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_comments_episode ON episode_comments(episode_id);

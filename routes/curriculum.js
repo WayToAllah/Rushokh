@@ -3,6 +3,7 @@ const express = require("express");
 const db = require("../db/database");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const sp = require("../lib/stage-progress");
+const quiz = require("../lib/quiz");
 
 const router = express.Router();
 
@@ -20,6 +21,7 @@ function buildSubjectsForStage(stageId, studentId) {
     ).all(subj.stage_subject_id);
 
     const series = seriesRows.map(s => {
+      // كل حلقة معاها اختباراتها. الحلقة "خلصت" (done) لما تتسمع وكل اختباراتها يتنجح فيها
       const episodes = db.prepare(
         `SELECT e.id, e.title, e.duration, e.url,
                 COALESCE(p.listened, 0) AS listened
@@ -27,7 +29,10 @@ function buildSubjectsForStage(stageId, studentId) {
          LEFT JOIN student_episode_progress p
            ON p.episode_id = e.id AND p.student_id = ?
          WHERE e.series_id = ? ORDER BY e.order_index ASC, e.id ASC`
-      ).all(studentId, s.id);
+      ).all(studentId, s.id).map(e => {
+        const tests = quiz.episodeTests(e.id).map(t => quiz.testStatus(studentId, t));
+        return { ...e, tests, done: !!e.listened && tests.every(t => t.passed) };
+      });
 
       const books = db.prepare(
         `SELECT b.id, b.title, b.total_pages, b.file_url,
@@ -38,30 +43,13 @@ function buildSubjectsForStage(stageId, studentId) {
          WHERE b.series_id = ? ORDER BY b.order_index ASC, b.id ASC`
       ).all(studentId, s.id);
 
-      // كل اختبارات السلسلة اللي فيها أسئلة، مع آخر نتيجة وهل نجح فيها قبل كده
+      // اختبارات السلسلة كلها (اللي مش على حلقة معيّنة) اللي فيها أسئلة، مع آخر نتيجة
       const tests = db.prepare(
         `SELECT t.id, t.title, t.pass_percent FROM tests t
-         WHERE t.series_id = ? AND EXISTS (SELECT 1 FROM questions q WHERE q.test_id = t.id)
+         WHERE t.series_id = ? AND t.episode_id IS NULL
+           AND EXISTS (SELECT 1 FROM questions q WHERE q.test_id = t.id)
          ORDER BY t.id ASC`
-      ).all(s.id).map(t => {
-        const last = db.prepare(
-          `SELECT id, score, status FROM student_test_attempts
-           WHERE student_id = ? AND test_id = ? ORDER BY id DESC LIMIT 1`
-        ).get(studentId, t.id);
-        const types = db.prepare(`SELECT DISTINCT type FROM questions WHERE test_id = ?`).all(t.id).map(r => r.type);
-        const everPassed = db.prepare(
-          `SELECT 1 FROM student_test_attempts WHERE student_id = ? AND test_id = ? AND passed = 1 LIMIT 1`
-        ).get(studentId, t.id);
-        return {
-          ...t,
-          last_score: last ? last.score : null,
-          // آخر محاولة فيها مقالي لسه المشرف ما صححهوش
-          pending: !!(last && last.status === "pending"),
-          has_result: !!last,
-          has_essay: types.includes("essay"),
-          passed: !!everPassed,
-        };
-      });
+      ).all(s.id).map(t => quiz.testStatus(studentId, t));
 
       return { id: s.id, name: s.name, url: s.url, episodes, books, tests };
     });

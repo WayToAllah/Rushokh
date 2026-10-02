@@ -36,8 +36,8 @@ test.describe("سياسة المحتوى", () => {
 
     await loginViaUi(page, s.email, s.password);
     await expect(page).toHaveURL(/student\.html/);
-    await page.locator("[data-view]").first().click();
-    await expect(page.locator("#viewerOverlay iframe")).toHaveAttribute("src", /youtube\.com\/embed\/dQw4w9WgXcQ/);
+    await page.locator(`a[href="#lesson/${ep.id}"]`).first().click();
+    await expect(page.locator("#lessonPlayer iframe")).toHaveAttribute("src", /youtube\.com\/embed\/dQw4w9WgXcQ/);
     await page.waitForTimeout(500);
     expect(await violations()).toEqual([]);
   });
@@ -46,7 +46,7 @@ test.describe("سياسة المحتوى", () => {
     const violations = await watchCsp(page);
     await loginViaUi(page, "admin@rasokh.test", "admin123");
     await expect(page).toHaveURL(/admin\.html/);
-    for (const tab of ["content-manage", "content-view", "tests", "students", "account"]) {
+    for (const tab of ["content-manage", "content-view", "tests", "reviews", "discussions", "students", "account"]) {
       await page.locator(`.tab-btn[data-tab="${tab}"]`).click();
     }
     await page.waitForLoadState("networkidle");

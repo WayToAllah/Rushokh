@@ -139,6 +139,25 @@ rasokh-backend/
 | PATCH   | `/admin/students/:id/password`         | كلمة مرور جديدة لطالب: `{ new_password }`   |
 | GET     | `/admin/reports/students.xlsx`         | تقرير Excel: ملخص الطلاب + التقدم في كل مادة |
 
+## صفحة الدرس (`#lesson/رقم` في صفحة الطالب)
+
+الحلقة بتفتح في صفحة لوحدها: الفيديو فوق، وتحته تبويبات:
+- **الملخص**: نص يكتبه المشرف للحلقة (`episodes.summary`) ورابط ملف (`summary_url`) + كتب السلسلة.
+- **أسئلة الدرس**: اختبارات الحلقة (`tests.episode_id`). الحلقة ما تتحسبش خلصت (`done`) غير لما تتسمع ويتنجح في أسئلتها،
+  واختبار الحلقة بيتحسب ضمن اختبارات المرحلة. الاختبار من غير `episode_id` = على السلسلة كلها زي الأول.
+- **المناقشة**: تعليقات عامة لطلبة الدرس (`episode_comments`) وردود المشرف، والمشرف بيتابعها من تبويب "المناقشات".
+- **ملاحظاتي**: ملاحظات خاصة بالطالب (`student_episode_notes`) بتتحفظ لوحدها.
+
+| Method | المسار | الوصف |
+|---|---|---|
+| GET | `/api/lessons/:id` | بيانات الدرس (ملخص، اختبارات، ملاحظتي، السابق/التالي) |
+| PUT | `/api/lessons/:id/note` | حفظ ملاحظتي `{ body }` |
+| GET/POST | `/api/lessons/:id/comments` | المناقشة / تعليق جديد `{ body, parent_id? }` |
+| DELETE | `/api/lessons/comments/:id` | الطالب يمسح تعليقه |
+| GET | `/api/admin/discussions?unanswered=1` | آخر التعليقات للمشرف |
+| POST | `/api/admin/discussions/:episodeId` | رد المشرف `{ body, parent_id }` |
+| PATCH/DELETE | `/api/admin/discussions/comments/:id` | تثبيت `{ pinned }` / مسح |
+
 ## أنواع الأسئلة (`lib/quiz.js`)
 
 | النوع | `type` | بيانات الإضافة | التصحيح |

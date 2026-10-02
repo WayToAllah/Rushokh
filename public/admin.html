@@ -127,6 +127,7 @@
   .test-card-head .actions{display:flex; gap:6px;}
   .edit-options{margin-bottom:12px;}
   .tree-stage > .head .actions, .tree-subject > .head .actions{display:flex; gap:6px; align-items:center; flex-wrap:wrap;}
+  [hidden]{display:none !important;}
   .tab-badge{display:inline-block; min-width:20px; padding:1px 6px; margin-inline-start:4px; border-radius:999px;
     background:var(--terracotta); color:#fff; font-size:.7rem; line-height:1.5; text-align:center;}
   .qtype-pill{display:inline-block; font-size:.68rem; padding:1px 8px; border-radius:999px; background:var(--line-soft);
@@ -137,6 +138,18 @@
   .tf-choice{display:flex; gap:16px; margin-bottom:12px;}
   .tf-choice label{display:flex; align-items:center; gap:6px; font-size:.88rem; color:var(--ink); margin:0;}
   .tf-choice input{width:auto; margin:0;}
+  .disc-card{border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:14px; background:var(--bg-raised);}
+  .disc-card.unanswered{border-inline-start:4px solid var(--gold);}
+  .disc-where{font-size:.75rem; color:var(--ink-soft); margin-bottom:6px;}
+  .disc-c{padding:6px 0;}
+  .disc-c .who{font-weight:600; color:var(--teal-900); font-size:.85rem;}
+  .disc-c .when{font-size:.72rem; color:var(--ink-soft); margin-inline-start:6px;}
+  .disc-c .text{white-space:pre-wrap; line-height:1.8; font-size:.9rem; margin:2px 0;}
+  .disc-c.admin .text{background:rgba(31,89,81,.07); border-radius:8px; padding:4px 10px;}
+  .disc-replies{margin-inline-start:20px; padding-inline-start:12px; border-inline-start:2px solid var(--line-soft);}
+  .disc-actions{display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; align-items:flex-start;}
+  .disc-actions textarea{flex:1; min-width:220px; min-height:44px; margin:0;}
+  .pin-badge{font-size:.68rem; background:var(--gold); color:#26200F; border-radius:999px; padding:1px 8px; margin-inline-start:6px;}
   .review-card{border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:14px; background:var(--bg-raised);}
   .review-head{display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; align-items:baseline;}
   .review-head strong{color:var(--teal-900);}
@@ -167,6 +180,7 @@
   <button class="tab-btn" data-tab="content-view">عرض المحتوى</button>
   <button class="tab-btn" data-tab="tests">الاختبارات</button>
   <button class="tab-btn" data-tab="reviews">التصحيح <span class="tab-badge" id="reviewsBadge" hidden></span></button>
+  <button class="tab-btn" data-tab="discussions">المناقشات <span class="tab-badge" id="discBadge" hidden></span></button>
   <button class="tab-btn" data-tab="students">الطلاب</button>
   <button class="tab-btn" data-tab="account">حسابي</button>
 </nav>
@@ -241,6 +255,10 @@
           <div><label>المدة (مثال: 40 د)</label><input type="text" id="episodeDuration"></div>
           <div><label>رابط الحلقة (اختياري)</label><input type="url" id="episodeUrl" placeholder="https://" dir="ltr"></div>
         </div>
+        <label>ملخص / تفريغ الدرس (اختياري)</label>
+        <textarea id="episodeSummary" rows="3" placeholder="بيظهر للطالب في تبويب الملخص في صفحة الدرس"></textarea>
+        <label>رابط ملف الملخص (اختياري، PDF مثلاً)</label>
+        <input type="url" id="episodeSummaryUrl" placeholder="https://" dir="ltr">
         <button class="btn" type="submit">إضافة</button>
       </form>
     </div>
@@ -278,11 +296,14 @@
   <div class="grid-2">
     <div class="panel-card">
       <h3>إنشاء اختبار جديد</h3>
-      <p class="hint">الطالب ينتقل للمرحلة التالية بعد النجاح في كل اختبارات المرحلة. الاختبار اللي مفيهوش أسئلة ما بيظهرش للطالب.</p>
+      <p class="hint">الطالب ينتقل للمرحلة التالية بعد النجاح في كل اختبارات المرحلة. الاختبار اللي مفيهوش أسئلة ما بيظهرش للطالب.
+        اختبار الحلقة بيظهر في تبويب "أسئلة الدرس" في صفحة الحلقة، والحلقة ما بتتحسبش خلصت غير لما الطالب ينجح فيه.</p>
       <div class="msg" id="msg-test"></div>
       <form id="formTest">
         <label>السلسلة</label>
         <select id="testSeries" required></select>
+        <label>الاختبار على</label>
+        <select id="testEpisode"></select>
         <label>عنوان الاختبار</label>
         <input type="text" id="testTitle" required>
         <label>نسبة النجاح (%)</label>
@@ -318,6 +339,20 @@
     <p class="hint">لما طالب يحل اختبار فيه سؤال مقالي، نتيجته بتفضل "قيد التصحيح" لحد ما تدّيله درجة هنا.
       بعد الحفظ الدرجة بتتحسب، ولو نجح وخلّص باقي المرحلة بيعدّي لوحده.</p>
     <div id="reviewsList">جارٍ التحميل...</div>
+  </div>
+</section>
+
+<!-- ======================= تبويب: المناقشات ======================= -->
+<section class="tab-panel" id="tab-discussions">
+  <div class="panel-card">
+    <div class="panel-head">
+      <h3>مناقشات الدروس</h3>
+      <label style="display:flex; align-items:center; gap:6px; font-size:.85rem; margin:0;">
+        <input type="checkbox" id="discOnlyUnanswered" style="width:auto; margin:0;"> اللي مستنية رد بس
+      </label>
+    </div>
+    <p class="hint">أسئلة وتعليقات الطلبة تحت كل درس. ردّك بيظهر للطلبة بعلامة "المشرف". 📌 بيثبّت التعليق فوق المناقشة، و🗑 بيمسحه هو والردود اللي عليه.</p>
+    <div id="discList">جارٍ التحميل...</div>
   </div>
 </section>
 
@@ -490,6 +525,7 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
     document.getElementById("tab-" + btn.dataset.tab).classList.add("active");
     // الطلاب بيسجّلوا والصفحة مفتوحة، فالقايمة بتتحدّث كل ما التبويب يتفتح
     if (btn.dataset.tab === "students") loadStudents().catch(() => {});
+    if (btn.dataset.tab === "discussions") loadDiscussions().catch(() => {});
   });
 });
 
@@ -511,9 +547,9 @@ async function refreshAll() {
   stagesList = stages;
   populateSelects(stages, subjects);
   renderTree(tree);
+  populateTestAndQuestionSelects(tree, tests); // قبل قائمة الاختبارات: بيجهّز حلقات كل سلسلة
   renderTestsList(tests);
-  populateTestAndQuestionSelects(tree, tests);
-  await Promise.all([loadStudents(), loadReviews()]);
+  await Promise.all([loadStudents(), loadReviews(), loadDiscussions()]);
 }
 
 function options(list, valueKey, labelFn) {
@@ -544,10 +580,15 @@ function flattenSeries(tree) {
 function populateTestAndQuestionSelects(tree, tests) {
   const series = flattenSeries(tree);
   const seriesOpts = options(series, "id", s => s.label);
+  const keepSeries = document.getElementById("testSeries").value;
   document.getElementById("testSeries").innerHTML = seriesOpts;
+  if (keepSeries) document.getElementById("testSeries").value = keepSeries;
+  episodesBySeries = {};
+  tree.forEach(stage => stage.subjects.forEach(subj => subj.series.forEach(s => { episodesBySeries[s.id] = s.episodes; })));
+  fillTestEpisodes();
   document.getElementById("episodeSeries").innerHTML = seriesOpts;
   document.getElementById("bookSeries").innerHTML = seriesOpts;
-  document.getElementById("questionTest").innerHTML = options(tests, "id", t => `${t.title} (${t.series_name})`);
+  document.getElementById("questionTest").innerHTML = options(tests, "id", t => `${t.title} (${t.episode_title ? "حلقة " + t.episode_title : t.series_name})`);
   document.getElementById("seriesStageSubject").innerHTML =
     options(flattenStageSubjects(tree), "stage_subject_id", s => s.label);
 }
@@ -582,14 +623,29 @@ bindForm("formLink", "msg-link", "/admin/content/stage-subject",
 bindForm("formSeries", "msg-series", "/admin/content/series",
   () => ({ stage_subject_id: num("seriesStageSubject"), name: val("seriesName"), url: val("seriesUrl") }), "تمت إضافة السلسلة.");
 bindForm("formEpisode", "msg-episode", "/admin/content/episodes",
-  () => ({ series_id: num("episodeSeries"), title: val("episodeTitle"), duration: val("episodeDuration"), url: val("episodeUrl") }),
+  () => ({ series_id: num("episodeSeries"), title: val("episodeTitle"), duration: val("episodeDuration"), url: val("episodeUrl"),
+           summary: val("episodeSummary"), summary_url: val("episodeSummaryUrl") }),
   "تمت إضافة الحلقة.");
 bindForm("formBook", "msg-book", "/admin/content/books",
   () => ({ series_id: num("bookSeries"), title: val("bookTitle"), total_pages: num("bookPages") || 0, file_url: val("bookUrl") }),
   "تمت إضافة الكتاب.");
 bindForm("formTest", "msg-test", "/admin/tests",
-  () => ({ series_id: num("testSeries"), title: val("testTitle"), pass_percent: num("testPassPercent") || 60 }),
+  () => ({ series_id: num("testSeries"), episode_id: num("testEpisode") || null, title: val("testTitle"), pass_percent: num("testPassPercent") || 60 }),
   "تم إنشاء الاختبار. أضف له أسئلة عشان يظهر للطالب.");
+
+// اختيار الحلقة بيتغير حسب السلسلة المختارة
+let episodesBySeries = {};
+function episodeOptions(seriesId, selected) {
+  const eps = episodesBySeries[seriesId] || [];
+  return `<option value="">السلسلة كلها</option>` + eps.map(e =>
+    `<option value="${esc(e.id)}"${String(e.id) === String(selected) ? " selected" : ""}>الحلقة: ${esc(e.title)}</option>`).join("");
+}
+function fillTestEpisodes() {
+  const sel = document.getElementById("testEpisode");
+  const keep = sel.value;
+  sel.innerHTML = episodeOptions(document.getElementById("testSeries").value, keep);
+}
+document.getElementById("testSeries").addEventListener("change", fillTestEpisodes);
 
 /* ======================= محرر السؤال (كل الأنواع) ======================= */
 const QTYPES = [
@@ -798,6 +854,76 @@ async function loadReviews() {
   });
 }
 
+/* ======================= المناقشات ======================= */
+async function loadDiscussions() {
+  const list = document.getElementById("discList");
+  const badge = document.getElementById("discBadge");
+  const only = document.getElementById("discOnlyUnanswered").checked;
+  let data;
+  try {
+    data = await apiFetch("/admin/discussions" + (only ? "?unanswered=1" : ""));
+  } catch (err) {
+    list.innerHTML = `<p style="color:var(--terracotta);">${esc(err.message)}</p>`;
+    return;
+  }
+  badge.hidden = data.unanswered_count === 0;
+  badge.textContent = data.unanswered_count;
+  if (!data.comments.length) {
+    list.innerHTML = `<p class="empty-note">${only ? "مفيش تعليقات مستنية رد. 👍" : "لسه مفيش تعليقات على الدروس."}</p>`;
+    return;
+  }
+  const one = (c) => `
+    <div class="disc-c ${c.is_admin ? "admin" : ""}">
+      <span class="who">${c.is_admin ? "المشرف" : esc(c.author)}</span><span class="when">${esc(formatDate(c.created_at))}</span>
+      ${c.pinned ? `<span class="pin-badge">📌 مثبّت</span>` : ""}
+      <div class="text">${esc(c.body)}</div>
+    </div>`;
+  list.innerHTML = data.comments.map(c => `
+    <div class="disc-card ${c.unanswered ? "unanswered" : ""}" data-comment="${esc(c.id)}" data-episode="${esc(c.episode_id)}">
+      <div class="disc-where">${esc(c.subject_name)} / ${esc(c.series_name)} / <strong>${esc(c.episode_title)}</strong>${c.unanswered ? " — <strong style=\"color:#6b5320;\">مستني رد</strong>" : ""}</div>
+      ${one(c)}
+      ${c.replies.length ? `<div class="disc-replies">${c.replies.map(r => `
+        <div style="display:flex; justify-content:space-between; gap:8px; align-items:flex-start;">
+          ${one(r)}
+          <button class="btn danger small" data-del-reply="${esc(r.id)}" title="مسح الرد">🗑</button>
+        </div>`).join("")}</div>` : ""}
+      <form class="disc-actions">
+        <textarea rows="1" maxlength="4000" placeholder="اكتب ردك..." aria-label="ردك"></textarea>
+        <button class="btn small" type="submit">رد</button>
+        <button class="btn small outline" type="button" data-pin="${c.pinned ? "0" : "1"}">${c.pinned ? "إلغاء التثبيت" : "📌 تثبيت"}</button>
+        <button class="btn danger small" type="button" data-del-thread title="مسح التعليق وردوده">🗑</button>
+      </form>
+    </div>`).join("");
+
+  list.querySelectorAll(".disc-card").forEach(card => {
+    const id = card.dataset.comment, ep = card.dataset.episode;
+    const form = card.querySelector("form");
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const text = form.querySelector("textarea").value.trim();
+      if (!text) { RasokhDialog.alert("اكتب الرد الأول."); return; }
+      try {
+        await apiFetch("/admin/discussions/" + ep, { method: "POST", body: JSON.stringify({ body: text, parent_id: Number(id) }) });
+        await loadDiscussions();
+      } catch (err) { RasokhDialog.alert(err.message); }
+    });
+    form.querySelector("[data-pin]").addEventListener("click", async (e) => {
+      try {
+        await apiFetch("/admin/discussions/comments/" + id, { method: "PATCH", body: JSON.stringify({ pinned: e.target.dataset.pin === "1" }) });
+        await loadDiscussions();
+      } catch (err) { RasokhDialog.alert(err.message); }
+    });
+    const del = async (cid, msg) => {
+      if (!(await RasokhDialog.confirm(msg, { title: "مسح", okText: "مسح", danger: true }))) return;
+      try { await apiFetch("/admin/discussions/comments/" + cid, { method: "DELETE" }); await loadDiscussions(); }
+      catch (err) { RasokhDialog.alert(err.message); }
+    };
+    form.querySelector("[data-del-thread]").addEventListener("click", () => del(id, "التعليق هيتمسح هو وكل الردود اللي عليه."));
+    card.querySelectorAll("[data-del-reply]").forEach(b => b.addEventListener("click", () => del(b.dataset.delReply, "الرد ده هيتمسح.")));
+  });
+}
+document.getElementById("discOnlyUnanswered").addEventListener("change", loadDiscussions);
+
 function formatDate(s) {
   if (!s) return "";
   const d = new Date(String(s).replace(" ", "T") + "Z");
@@ -812,6 +938,10 @@ let editState = null;
 function fieldHtml(f, i) {
   const id = `ef_${i}`;
   if (f.type === "question") return `<div id="${id}">${questionEditorHtml(f.value)}</div>`;
+  if (f.type === "textarea") return `<label for="${id}">${esc(f.label)}</label>
+    <textarea id="${id}" rows="${f.rows || 5}">${esc(f.value || "")}</textarea>
+    ${f.hint ? `<p class="hint" style="margin-top:-6px;">${esc(f.hint)}</p>` : ""}`;
+  if (f.type === "select") return `<label for="${id}">${esc(f.label)}</label><select id="${id}">${f.html}</select>`;
   if (f.type === "options") {
     const opts = f.value.length >= 4 ? f.value : [...f.value, ...Array(4 - f.value.length).fill({ text: "", is_correct: false })];
     return `<label>${esc(f.label)}</label>
@@ -971,9 +1101,11 @@ function renderTree(tree) {
                           { name: "title", label: "عنوان الحلقة", value: e.title, required: true },
                           { name: "duration", label: "المدة (مثال: 40 د)", value: e.duration || "" },
                           { name: "url", label: "رابط الحلقة", type: "url", value: e.url || "", placeholder: "https://" },
+                          { name: "summary", label: "ملخص / تفريغ الدرس", type: "textarea", value: e.summary || "", hint: "بيظهر للطالب في تبويب الملخص في صفحة الدرس." },
+                          { name: "summary_url", label: "رابط ملف الملخص (PDF مثلاً)", type: "url", value: e.summary_url || "", placeholder: "https://" },
                         ],
                       };
-                      return `<li><span>▶️ ${esc(e.title)}${e.url ? "" : ' <span class="muted">(من غير رابط)</span>'}</span><span class="actions">${openLink(e.url, "فتح الحلقة")}${moveBtns("episodes", epGroup, e.id, ei, s.episodes.length)}${editBtn("episode:" + e.id)}${delBtn("episodes", e.id)}</span></li>`;
+                      return `<li><span>▶️ ${esc(e.title)}${e.url ? "" : ' <span class="muted">(من غير رابط)</span>'}${e.summary || e.summary_url ? ' <span class="muted" title="فيه ملخص">📄</span>' : ""}</span><span class="actions">${openLink(e.url, "فتح الحلقة")}${moveBtns("episodes", epGroup, e.id, ei, s.episodes.length)}${editBtn("episode:" + e.id)}${delBtn("episodes", e.id)}</span></li>`;
                     }).join("")}
                     ${s.books.map((b, bi) => {
                       editables["book:" + b.id] = {
@@ -1048,6 +1180,7 @@ function renderTestsList(tests) {
       fields: [
         { name: "title", label: "عنوان الاختبار", value: t.title, required: true },
         { name: "pass_percent", label: "نسبة النجاح (%)", type: "number", value: t.pass_percent, min: 1, max: 100, required: true },
+        { name: "episode_id", label: "الاختبار على", type: "select", html: episodeOptions(t.series_id, t.episode_id || "") },
       ],
     };
     return `
@@ -1060,7 +1193,7 @@ function renderTestsList(tests) {
         </span>
       </div>
       <div style="font-size:.78rem; color:var(--ink-soft); margin-top:4px;">
-        السلسلة: ${esc(t.series_name)} — نسبة النجاح: ${esc(t.pass_percent)}%
+        السلسلة: ${esc(t.series_name)}${t.episode_title ? ` — <strong>الحلقة: ${esc(t.episode_title)}</strong>` : " — على السلسلة كلها"} — نسبة النجاح: ${esc(t.pass_percent)}%
         ${t.questions.length === 0 ? ` — <span style="color:var(--terracotta);">مفيهوش أسئلة، مش ظاهر للطلاب</span>` : ""}
       </div>
       <ul class="tree-item-list" style="margin-top:8px;">
