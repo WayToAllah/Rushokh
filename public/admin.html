@@ -28,6 +28,7 @@
     position:sticky; top:0; z-index:30; box-shadow:var(--shadow);
   }
   .brand{font-size:1.5rem; font-weight:700; color:var(--gold-light);}
+  .brand .site-logo{height:40px; width:auto; vertical-align:middle;}
   .brand small{font-family:'IBM Plex Sans Arabic'; font-size:.65rem; color:#C9BFA0; font-weight:400; margin-right:8px;}
   .pill-btn{
     background:transparent; border:1px solid #3F615A; color:var(--bg-raised);
@@ -155,7 +156,7 @@
 <body>
 
 <header class="topbar">
-  <div class="brand">رسوخ <small>لوحة المشرف</small></div>
+  <div class="brand"><span data-logo>رسوخ</span> <small>لوحة المشرف</small></div>
   <div>
     <button class="pill-btn" id="btnLogout">تسجيل خروج</button>
   </div>
@@ -391,6 +392,7 @@
   </div>
 </div>
 
+<script src="logo.js"></script>
 <script src="password-eye.js"></script>
 <script src="dialog.js"></script>
 <script src="forms.js"></script>

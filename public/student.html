@@ -63,6 +63,7 @@
     align-items:baseline;
     gap:8px;
   }
+  .brand .site-logo{height:40px; width:auto; vertical-align:middle;}
   .brand small{
     font-family:'IBM Plex Sans Arabic', sans-serif;
     font-size:.65rem;
@@ -469,7 +470,7 @@
 <body>
 
 <header class="topbar">
-  <div class="brand">رسوخ <small>أكاديمية العلم الشرعي</small></div>
+  <div class="brand"><span data-logo>رسوخ</span> <small>أكاديمية العلم الشرعي</small></div>
   <div class="student-info">
     <span class="student-name" id="studentNameLbl"></span>
     <button class="pill-btn solid" id="btnReport">📊 تقريري</button>
@@ -569,6 +570,7 @@
   </div>
 </div>
 
+<script src="logo.js"></script>
 <script src="media.js"></script>
 <script src="password-eye.js"></script>
 <script src="dialog.js"></script>
