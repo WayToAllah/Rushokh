@@ -196,6 +196,20 @@ rasokh-backend/
   جدول `books` جاهز لاستقبال رابط الملف لاحقًا) — تحتاج مكتبة رفع ملفات (multer)
   ونقطة تخزين (مجلد محلي أو تخزين سحابي) في مرحلة لاحقة.
 
+## التشغيل على سيرفر (Oracle Cloud أو أي سيرفر لينكس)
+
+ادخل على السيرفر بـ SSH وشغّل سطر واحد:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/WayToAllah/Rushokh/main/scripts/server-setup.sh | bash
+```
+
+السكريبت بيسطّب Node و cloudflared، ويشغّل الموقع كخدمة بتقوم لوحدها مع السيرفر، ويسحب أي تحديث من GitHub كل 5 دقايق،
+ويربط `rusuokh.com` بـ Cloudflare Tunnel (هيطلب منك تفتح رابط وتدوس Authorize مرة واحدة). مش محتاج تفتح بورتات في Oracle.
+عشان تنقل بيانات جهازك: ارفع `db\rasokh.db` للسيرفر باسم `~/rasokh.db` **قبل** أول تشغيل للسكريبت.
+
+أوامر مفيدة على السيرفر: `sudo systemctl status rasokh` · `sudo journalctl -u rasokh -n 50` · `rasokh-update` (تحديث فوري).
+
 ## النشر على الإنترنت (عشان أي حد من أي جهاز يفتح المنصة)
 
 السيرفر بيقدّم الواجهة والـ API من نفس الرابط، فأي طريقة من دول بتشغّل المنصة كلها.
