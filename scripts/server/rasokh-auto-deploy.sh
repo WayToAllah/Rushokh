@@ -20,7 +20,8 @@ mkdir -p "$STATE"
 exec 9>"$STATE/lock"
 flock -n 9 || exit 0
 
-as_app() { runuser -u "$APP_USER" -- env HOME=/opt/rasokh "$@"; }
+# setpriv بدل runuser عشان مايكتبش "session opened/closed" في السجل كل دقيقتين
+as_app() { setpriv --reuid="$APP_USER" --regid="$APP_USER" --init-groups env HOME=/opt/rasokh "$@"; }
 short() { echo "${1:0:7}"; }
 
 # بيكتب الحالة في السجل مرة واحدة بس لكل نسخة، عشان "مستني الاختبارات" مايتكررش كل دقيقتين
