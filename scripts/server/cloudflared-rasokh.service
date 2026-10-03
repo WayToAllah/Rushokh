@@ -1,0 +1,13 @@
+# نفق Cloudflare اللي بيوصّل rusuokh.com بالموقع. الإعداد في /etc/cloudflared/config.yml (رقم النفق وملف بياناته)
+[Unit]
+Description=Cloudflare Tunnel for rusuokh.com
+After=network-online.target rasokh.service
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/bin/cloudflared --no-autoupdate --config /etc/cloudflared/config.yml tunnel run
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

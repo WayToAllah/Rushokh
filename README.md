@@ -215,9 +215,23 @@ rasokh-backend/
   جدول `books` جاهز لاستقبال رابط الملف لاحقًا) — تحتاج مكتبة رفع ملفات (multer)
   ونقطة تخزين (مجلد محلي أو تخزين سحابي) في مرحلة لاحقة.
 
-## التشغيل على سيرفر (Oracle Cloud أو أي سيرفر لينكس)
+## السيرفر الحالي (Oracle Cloud) والتحديث التلقائي
 
-ادخل على السيرفر بـ SSH وشغّل سطر واحد:
+الموقع الحقيقي `rusuokh.com` شغّال على سيرفر Oracle Cloud المجاني (Ubuntu 24.04)، مش على جهاز حد:
+
+- الموقع في `/opt/rasokh/app` بالمستخدم `rasokh` (فيه `.env` وقاعدة البيانات و`backups/`)، وبيشتغل كخدمة `rasokh`.
+- الدومين متوصّل بنفق Cloudflare (`rasokh`) من خدمة `cloudflared-rasokh`، فمفيش أي بورت مفتوح.
+- **التحديث تلقائي:** أي رفع على `main` بيتنزّل على السيرفر لوحده خلال دقايق، **بس بعد ما اختبارات GitHub تنجح عليه**.
+  لو الاختبارات فشلت، النسخة مابتتنزّلش والموقع بيفضل على اللي قبلها.
+  قبل كل تحديث بتتعمل نسخة احتياطية من قاعدة البيانات في `backups/deploys/`، ولو الموقع ماردّش بعد التحديث بيرجع للنسخة اللي قبلها لوحده.
+- ملفات الخدمات والتحديث في `scripts/server/`. لو اتعدلوا، بيتركّبوا بـ `sudo bash /opt/rasokh/app/scripts/server/install.sh`.
+
+أوامر مفيدة على السيرفر: `journalctl -u rasokh-auto-deploy -n 20` (التحديثات) · `sudo systemctl start rasokh-auto-deploy` (تحديث فوري)
+· `sudo journalctl -u rasokh -n 50` (سجل الموقع) · `systemctl status rasokh cloudflared-rasokh`.
+
+## تجهيز سيرفر جديد فاضي (مش السيرفر الحالي)
+
+> ⚠️ السكريبت ده لسيرفر جديد بس، وبيرفض يشتغل على السيرفر الحالي. ادخل على السيرفر الجديد بـ SSH وشغّل سطر واحد:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/WayToAllah/Rushokh/main/scripts/server-setup.sh | bash

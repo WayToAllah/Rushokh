@@ -1,0 +1,19 @@
+# الموقع نفسه: /opt/rasokh/app بالمستخدم rasokh، وبيقوم لوحده مع السيرفر ويرجع لو وقع
+[Unit]
+Description=Rasokh website (rusuokh.com)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=rasokh
+WorkingDirectory=/opt/rasokh/app
+ExecStart=/usr/bin/node server.js
+Environment=NODE_ENV=production
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

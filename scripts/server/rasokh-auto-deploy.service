@@ -1,0 +1,11 @@
+# التحديث التلقائي من GitHub (شوف rasokh-auto-deploy.sh). السجل: journalctl -u rasokh-auto-deploy
+[Unit]
+Description=Rasokh: deploy the latest GitHub version after its tests pass
+After=network-online.target rasokh.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/rasokh-auto-deploy
+StateDirectory=rasokh-deploy
+TimeoutStartSec=15min

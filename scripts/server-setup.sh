@@ -29,6 +29,14 @@ if [ "$(id -u)" -eq 0 ]; then
   echo "شغّل السكريبت بالمستخدم العادي (ubuntu أو opc) مش root."; exit 1
 fi
 
+# سيرفر رسوخ الحالي (Oracle) متجهّز بطريقة تانية: الموقع في /opt/rasokh/app والتحديث التلقائي rasokh-auto-deploy.
+# التشغيل هنا كان هيعمل نسخة تانية بقاعدة بيانات فاضية ويحوّل الموقع والدومين عليها، فبنوقف.
+if [ -d /opt/rasokh/app ]; then
+  echo "السيرفر ده متجهّز قبل كده والموقع شغّال عليه. السكريبت ده لسيرفر جديد فاضي بس، ومش هيكمّل."
+  echo "التحديث هنا تلقائي من GitHub. السجل: journalctl -u rasokh-auto-deploy"
+  exit 1
+fi
+
 step "1/5 تسطيب البرامج"
 ARCH="$(uname -m)"
 case "$ARCH" in
