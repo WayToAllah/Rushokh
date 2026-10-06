@@ -198,3 +198,55 @@ describe("رقم الحلقة", () => {
     assert.deepEqual(nums, [1, 2, 3]);
   });
 });
+
+// النقل من مكان لمكان من نافذة التعديل بدل المسح والإضافة من جديد
+describe("نقل المحتوى", () => {
+  let ssA, ssB, seriesA, seriesB;
+  before(async () => {
+    const two = app.db.prepare(`SELECT id FROM stage_subject ORDER BY id LIMIT 2`).all();
+    [ssA, ssB] = two.map(r => r.id);
+    const mk = (ss, name) => app.call("POST", "/admin/content/series", { token: admin, body: { stage_subject_id: ss, name } });
+    seriesA = (await mk(ssA, "سلسلة أ")).data.id;
+    seriesB = (await mk(ssB, "سلسلة ب")).data.id;
+  });
+  const addEp = (series, title, number) => app.call("POST", "/admin/content/episodes", { token: admin, body: { series_id: series, title, number } });
+  const row = id => ({ ...app.db.prepare(`SELECT series_id, order_index, title FROM episodes WHERE id = ?`).get(id) });
+
+  it("الحلقة تتنقل لسلسلة تانية، ولو رقمها مستخدم هناك تاخد أول رقم فاضي، واختبارها يتنقل معاها", async () => {
+    await addEp(seriesB, "ب1", 1);
+    const id = (await addEp(seriesA, "أ1", 1)).data.id;
+    const t = (await app.call("POST", "/admin/tests", { token: admin, body: { series_id: seriesA, episode_id: id, title: "اختبار أ1" } })).data.id;
+    const r = await app.call("PATCH", `/admin/content/episodes/${id}`, { token: admin, body: { series_id: String(seriesB), number: "1", title: "أ1 بعد النقل" } });
+    assert.equal(r.status, 200);
+    assert.deepEqual(row(id), { series_id: seriesB, order_index: 2, title: "أ1 بعد النقل" });
+    assert.equal(app.db.prepare(`SELECT series_id FROM tests WHERE id = ?`).get(t).series_id, seriesB);
+  });
+
+  it("لو اختار رقم مستخدم بنفسه وهو بينقل بيترفض، ورقم فاضي بيتقبل", async () => {
+    const id = (await addEp(seriesA, "أ2", 7)).data.id;
+    const bad = await app.call("PATCH", `/admin/content/episodes/${id}`, { token: admin, body: { series_id: seriesB, number: 1 } });
+    assert.equal(bad.status, 400);
+    assert.equal(row(id).series_id, seriesA, "ما اتنقلتش");
+    assert.equal((await app.call("PATCH", `/admin/content/episodes/${id}`, { token: admin, body: { series_id: seriesB, number: 10 } })).status, 200);
+    assert.deepEqual([row(id).series_id, row(id).order_index], [seriesB, 10]);
+  });
+
+  it("سلسلة مش موجودة بتترفض", async () => {
+    const id = (await addEp(seriesA, "أ3")).data.id;
+    assert.equal((await app.call("PATCH", `/admin/content/episodes/${id}`, { token: admin, body: { series_id: 999999 } })).status, 400);
+  });
+
+  it("الكتاب يتنقل لسلسلة تانية", async () => {
+    const id = (await app.call("POST", "/admin/content/books", { token: admin, body: { series_id: seriesA, title: "كتاب", total_pages: 10 } })).data.id;
+    assert.equal((await app.call("PATCH", `/admin/content/books/${id}`, { token: admin, body: { series_id: seriesB, title: "كتاب" } })).status, 200);
+    assert.equal(app.db.prepare(`SELECT series_id FROM books WHERE id = ?`).get(id).series_id, seriesB);
+  });
+
+  it("السلسلة تتنقل لقسم/مرحلة تانية بحلقاتها", async () => {
+    const before = app.db.prepare(`SELECT COUNT(*) AS n FROM episodes WHERE series_id = ?`).get(seriesA).n;
+    assert.equal((await app.call("PATCH", `/admin/content/series/${seriesA}`, { token: admin, body: { stage_subject_id: ssB, name: "سلسلة أ" } })).status, 200);
+    assert.equal(app.db.prepare(`SELECT stage_subject_id FROM series WHERE id = ?`).get(seriesA).stage_subject_id, ssB);
+    assert.equal(app.db.prepare(`SELECT COUNT(*) AS n FROM episodes WHERE series_id = ?`).get(seriesA).n, before);
+    assert.equal((await app.call("PATCH", `/admin/content/series/${seriesA}`, { token: admin, body: { stage_subject_id: 999999 } })).status, 400);
+  });
+});

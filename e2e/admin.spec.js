@@ -52,6 +52,29 @@ test.describe("لوحة المشرف", () => {
     }, { seriesId: series, title: "حلقة مكررة" });
   });
 
+  test("تعديل الحلقة بينقلها لسلسلة تانية من غير مسح", async ({ page, request }) => {
+    const token = await page.evaluate(() => localStorage.getItem("rasokh_token"));
+    const headers = { Authorization: `Bearer ${token}` };
+    const tree = await (await request.get("/api/admin/content/tree", { headers })).json();
+    // مرحلة غير التمهيدية عشان عدد حلقات الطالب الجديد ما يتأثرش
+    const ss = tree.slice(1).find(st => st.subjects.length).subjects[0].stage_subject_id;
+    const mk = async name => (await (await request.post("/api/admin/content/series", { headers, data: { stage_subject_id: ss, name } })).json()).id;
+    const from = await mk(`سلسلة قديمة ${Date.now()}`), to = await mk(`سلسلة جديدة ${Date.now()}`);
+    const ep = await (await request.post("/api/admin/content/episodes", { headers, data: { series_id: from, title: "حلقة هتتنقل" } })).json();
+
+    await page.reload();
+    await page.locator('.tab-btn[data-tab="content-view"]').click();
+    await page.locator(`[data-edit="episode:${ep.id}"]`).click();
+    await page.locator("#editFields select").first().selectOption(String(to));
+    await page.locator("#editForm").getByRole("button", { name: "حفظ التعديل" }).click();
+    await expect(page.locator("#editOverlay")).toBeHidden();
+    const after = await (await request.get("/api/admin/content/tree", { headers })).json();
+    const series = after.flatMap(st => st.subjects).flatMap(x => x.series);
+    expect(series.find(x => x.id === to).episodes.map(e => e.title)).toContain("حلقة هتتنقل");
+    expect(series.find(x => x.id === from).episodes).toHaveLength(0);
+    for (const id of [from, to]) await request.delete(`/api/admin/content/series/${id}`, { headers });
+  });
+
   test("سؤال من غير نص وخيارات بيقول الخانات الناقصة بالاسم", async ({ page }) => {
     await page.locator('.tab-btn[data-tab="tests"]').click();
     await page.locator("#formQuestion").getByRole("button").last().click();

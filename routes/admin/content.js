@@ -183,11 +183,36 @@ router.post("/series", (req, res) => {
   res.status(201).json({ id: Number(info.lastInsertRowid), name });
 });
 
-// تعديل اسم السلسلة أو رابطها (قائمة تشغيل يوتيوب مثلاً). رابط فاضي = مسح الرابط.
+// نقل عنصر لمكان تاني: بيرجّع { move: true, order } لو المكان اتغير، أو { move: false }، أو { error }
+// parentTable/parentCol: الجدول الأب والعمود اللي بيشاور عليه (سلسلة لحلقة/كتاب، قسم-مرحلة لسلسلة)
+function moveTarget(table, id, parentCol, parentTable, newParent, label) {
+  const row = db.prepare(`SELECT ${parentCol} AS parent FROM ${table} WHERE id = ?`).get(id);
+  if (!row) return { error: "العنصر غير موجود.", status: 404 };
+  if (newParent === undefined || newParent === null || newParent === "") return { move: false, current: row.parent };
+  const target = Number(newParent);
+  if (target === row.parent) return { move: false, current: row.parent };
+  if (!Number.isInteger(target) || !db.prepare(`SELECT 1 FROM ${parentTable} WHERE id = ?`).get(target)) {
+    return { error: `${label} اللي اخترته مش موجود. حدّث الصفحة وحاول تاني.`, status: 400 };
+  }
+  return { move: true, current: row.parent, target };
+}
+
+// تعديل السلسلة: الاسم والرابط، ونقلها لقسم/مرحلة تانية (stage_subject_id) بكل حلقاتها وكتبها واختباراتها
 router.patch("/series/:id", (req, res) => {
-  sendPatch(res, patchRow("series", req.params.id, req.body, {
+  const body = { ...req.body };
+  delete body.order_index;
+  const mv = moveTarget("series", req.params.id, "stage_subject_id", "stage_subject", body.stage_subject_id, "القسم");
+  if (mv.error) return res.status(mv.status).json({ error: mv.error });
+  delete body.stage_subject_id;
+  if (mv.move) {
+    body.stage_subject_id = mv.target;
+    body.order_index = nextOrder("series", "stage_subject_id", mv.target); // تتحط آخر القسم الجديد
+  }
+  sendPatch(res, patchRow("series", req.params.id, body, {
     name: required("اسم السلسلة", 150),
     url: urlField("رابط السلسلة"),
+    stage_subject_id: v => ({ ok: true, value: v }), // اتأكدنا منه فوق
+    order_index: v => ({ ok: true, value: v }),
   }));
 });
 
@@ -238,25 +263,53 @@ router.post("/episodes", (req, res) => {
   res.status(201).json({ id: Number(info.lastInsertRowid), title, number });
 });
 
+// تعديل الحلقة: كل بياناتها، ورقمها، ونقلها لسلسلة تانية (في أي قسم أو مرحلة)
 router.patch("/episodes/:id", (req, res) => {
   req.body = { ...req.body };
   delete req.body.order_index; // الترتيب بيتغير بس من "number" (بعد التأكد إنه مش متكرر) أو من ↑↓
-  if ("number" in req.body) {
-    const ep = db.prepare(`SELECT id, series_id FROM episodes WHERE id = ?`).get(req.params.id);
-    if (!ep) return res.status(404).json({ error: "العنصر غير موجود." });
-    const chk = checkEpisodeNumber(ep.series_id, req.body.number, ep.id);
-    if (chk.error) return res.status(400).json({ error: chk.error });
-    req.body = { ...req.body, order_index: chk.value };
-    delete req.body.number;
+  const ep = db.prepare(`SELECT id, series_id, order_index FROM episodes WHERE id = ?`).get(req.params.id);
+  if (!ep) return res.status(404).json({ error: "العنصر غير موجود." });
+  const mv = moveTarget("episodes", ep.id, "series_id", "series", req.body.series_id, "السلسلة");
+  if (mv.error) return res.status(mv.status).json({ error: mv.error });
+  delete req.body.series_id;
+  const seriesId = mv.move ? mv.target : ep.series_id;
+
+  let number = "number" in req.body ? req.body.number : undefined;
+  delete req.body.number;
+  // نقلها لسلسلة تانية من غير ما يغيّر رقمها: تاخد أول رقم فاضي هناك لو رقمها مستخدم
+  if (mv.move && (number === undefined || number === "" || Number(number) === ep.order_index)) {
+    const taken = db.prepare(`SELECT 1 FROM episodes WHERE series_id = ? AND order_index = ?`).get(seriesId, ep.order_index);
+    number = taken ? nextEpisodeNumber(seriesId) : ep.order_index;
   }
-  sendPatch(res, patchRow("episodes", req.params.id, req.body, {
-    order_index: v => ({ ok: true, value: v }), // اتأكدنا منه فوق
-    title: required("عنوان الحلقة", 200),
-    url: urlField("رابط الحلقة"),
-    duration: optional(30),
-    summary: optional(50000),
-    summary_url: urlField("رابط ملف الملخص"),
-  }));
+  if (number !== undefined) {
+    const chk = checkEpisodeNumber(seriesId, number, ep.id);
+    if (chk.error) return res.status(400).json({ error: chk.error });
+    req.body.order_index = chk.value;
+  }
+  if (mv.move) req.body.series_id = seriesId;
+
+  db.exec("BEGIN");
+  let result;
+  try {
+    result = patchRow("episodes", ep.id, req.body, {
+      series_id: v => ({ ok: true, value: v }), // اتأكدنا منه فوق
+      order_index: v => ({ ok: true, value: v }),
+      title: required("عنوان الحلقة", 200),
+      url: urlField("رابط الحلقة"),
+      duration: optional(30),
+      summary: optional(50000),
+      summary_url: urlField("رابط ملف الملخص"),
+    });
+    // اختبارات الحلقة بتتنقل معاها
+    if (result.status === 200 && mv.move) {
+      db.prepare(`UPDATE tests SET series_id = ? WHERE episode_id = ?`).run(seriesId, ep.id);
+    }
+    db.exec(result.status === 200 ? "COMMIT" : "ROLLBACK");
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
+  sendPatch(res, result);
 });
 
 router.delete("/episodes/:id", (req, res) => {
@@ -280,11 +333,23 @@ router.post("/books", (req, res) => {
   res.status(201).json({ id: Number(info.lastInsertRowid), title });
 });
 
+// تعديل الكتاب، ونقله لسلسلة تانية (بيتحط آخر كتبها)
 router.patch("/books/:id", (req, res) => {
-  sendPatch(res, patchRow("books", req.params.id, req.body, {
+  const body = { ...req.body };
+  delete body.order_index;
+  const mv = moveTarget("books", req.params.id, "series_id", "series", body.series_id, "السلسلة");
+  if (mv.error) return res.status(mv.status).json({ error: mv.error });
+  delete body.series_id;
+  if (mv.move) {
+    body.series_id = mv.target;
+    body.order_index = nextOrder("books", "series_id", mv.target);
+  }
+  sendPatch(res, patchRow("books", req.params.id, body, {
     title: required("عنوان الكتاب", 200),
     file_url: urlField("رابط الكتاب"),
     total_pages: pages,
+    series_id: v => ({ ok: true, value: v }),
+    order_index: v => ({ ok: true, value: v }),
   }));
 });
 

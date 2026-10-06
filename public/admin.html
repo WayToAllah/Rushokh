@@ -986,7 +986,8 @@ function fieldHtml(f, i) {
   if (f.type === "textarea") return `<label for="${id}">${esc(f.label)}</label>
     <textarea id="${id}" rows="${f.rows || 5}">${esc(f.value || "")}</textarea>
     ${f.hint ? `<p class="hint" style="margin-top:-6px;">${esc(f.hint)}</p>` : ""}`;
-  if (f.type === "select") return `<label for="${id}">${esc(f.label)}</label><select id="${id}">${f.html}</select>`;
+  if (f.type === "select") return `<label for="${id}">${esc(f.label)}</label><select id="${id}">${f.html}</select>
+    ${f.hint ? `<p class="hint" style="margin-top:-6px;">${esc(f.hint)}</p>` : ""}`;
   if (f.type === "options") {
     const opts = f.value.length >= 4 ? f.value : [...f.value, ...Array(4 - f.value.length).fill({ text: "", is_correct: false })];
     return `<label>${esc(f.label)}</label>
@@ -1069,8 +1070,15 @@ function moveBtns(kind, groupKey, id, index, count) {
   </span>`;
 }
 
+// اختيار المكان في نافذة التعديل (عشان تنقل العنصر من غير ما تمسحه وتضيفه تاني)
+function placeOptions(list, valueKey, selected) {
+  return list.map(x => `<option value="${esc(x[valueKey])}"${String(x[valueKey]) === String(selected) ? " selected" : ""}>${esc(x.label)}</option>`).join("");
+}
+
 function renderTree(tree) {
   const el = document.getElementById("contentTree");
+  const allSeries = flattenSeries(tree);
+  const allStageSubjects = flattenStageSubjects(tree);
   orderGroups = { stages: tree.map(s => s.id) };
   editables = {};
   if (tree.length === 0) { el.innerHTML = `<p class="empty-note">لا توجد مراحل بعد.</p>`; return; }
@@ -1120,6 +1128,8 @@ function renderTree(tree) {
                 editables["series:" + s.id] = {
                   title: "تعديل السلسلة", path: "/admin/content/series/" + s.id,
                   fields: [
+                    { name: "stage_subject_id", label: "مكانها (المرحلة — القسم)", type: "select", html: placeOptions(allStageSubjects, "stage_subject_id", subj.stage_subject_id),
+                      hint: "لو غيّرته، السلسلة بتتنقل بكل حلقاتها وكتبها واختباراتها." },
                     { name: "name", label: "اسم السلسلة", value: s.name, required: true },
                     { name: "url", label: "رابط السلسلة كاملة (اختياري)", type: "url", value: s.url || "", placeholder: "https://www.youtube.com/playlist?list=..." },
                   ],
@@ -1143,6 +1153,8 @@ function renderTree(tree) {
                       editables["episode:" + e.id] = {
                         title: "تعديل الحلقة", path: "/admin/content/episodes/" + e.id,
                         fields: [
+                          { name: "series_id", label: "مكانها (المرحلة — القسم — السلسلة)", type: "select", html: placeOptions(allSeries, "id", s.id),
+                            hint: "لو نقلتها لسلسلة تانية ورقمها مستخدم هناك، بتاخد أول رقم فاضي. اختباراتها بتتنقل معاها." },
                           { name: "number", label: "رقم الحلقة (مينفعش يتكرر في نفس السلسلة)", type: "number", value: e.order_index, min: 1, max: 9999, required: true },
                           { name: "title", label: "عنوان الحلقة", value: e.title, required: true },
                           { name: "duration", label: "المدة (مثال: 40 د)", value: e.duration || "" },
@@ -1157,6 +1169,7 @@ function renderTree(tree) {
                       editables["book:" + b.id] = {
                         title: "تعديل الكتاب", path: "/admin/content/books/" + b.id,
                         fields: [
+                          { name: "series_id", label: "مكانه (المرحلة — القسم — السلسلة)", type: "select", html: placeOptions(allSeries, "id", s.id) },
                           { name: "title", label: "عنوان الكتاب", value: b.title, required: true },
                           { name: "total_pages", label: "عدد الصفحات", type: "number", value: b.total_pages, min: 0, required: true },
                           { name: "file_url", label: "رابط الملف", type: "url", value: b.file_url || "", placeholder: "https://drive.google.com/..." },
