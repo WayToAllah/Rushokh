@@ -157,3 +157,44 @@ describe("الترتيب والحذف", () => {
     assert.equal(cur.stages.find(x => x.status === "current").name, "التمهيدية");
   });
 });
+
+// رقم الحلقة: بيبدأ من 1، بيتملى لوحده، ومينفعش يتكرر في نفس السلسلة
+describe("رقم الحلقة", () => {
+  let seriesId;
+  before(async () => {
+    const ss = app.db.prepare(`SELECT id FROM stage_subject LIMIT 1`).get().id;
+    seriesId = (await app.call("POST", "/admin/content/series", { token: admin, body: { stage_subject_id: ss, name: "سلسلة الأرقام" } })).data.id;
+  });
+  const add = body => app.call("POST", "/admin/content/episodes", { token: admin, body: { series_id: seriesId, ...body } });
+
+  it("من غير رقم بياخد اللي بعد آخر حلقة، وبرقم مكرر بيترفض برسالة واضحة", async () => {
+    assert.equal((await add({ title: "الأولى" })).data.number, 1);
+    assert.equal((await add({ title: "الخامسة", number: 5 })).data.number, 5);
+    assert.equal((await add({ title: "السادسة" })).data.number, 6);
+    const dup = await add({ title: "مكررة", number: 5 });
+    assert.equal(dup.status, 400);
+    assert.match(dup.data.error, /الرقم 5 مستخدم بالفعل للحلقة "الخامسة"/);
+    assert.match(dup.data.error, /أول رقم فاضي: 7/);
+    assert.equal((await add({ title: "صفر", number: 0 })).status, 400);
+  });
+
+  it("التعديل: نفس رقمها مسموح، ورقم حلقة تانية مرفوض، والطالب بيشوفها بالترتيب الجديد", async () => {
+    const eps = app.db.prepare(`SELECT id, title, order_index FROM episodes WHERE series_id = ? ORDER BY order_index`).all(seriesId);
+    const first = eps.find(e => e.title === "الأولى");
+    assert.equal((await app.call("PATCH", `/admin/content/episodes/${first.id}`, { token: admin, body: { number: 1, title: "الأولى" } })).status, 200);
+    assert.equal((await app.call("PATCH", `/admin/content/episodes/${first.id}`, { token: admin, body: { number: 6 } })).status, 400);
+    assert.equal((await app.call("PATCH", `/admin/content/episodes/${first.id}`, { token: admin, body: { number: 9 } })).status, 200);
+    // order_index مباشرة مش بيعدّي من غير التأكد
+    await app.call("PATCH", `/admin/content/episodes/${first.id}`, { token: admin, body: { order_index: 5, title: "الأولى" } });
+    const order = app.db.prepare(`SELECT title, order_index FROM episodes WHERE series_id = ? ORDER BY order_index`).all(seriesId);
+    assert.deepEqual(order.map(e => e.order_index), [5, 6, 9]);
+    assert.equal(order[2].title, "الأولى");
+  });
+
+  it("الترتيب بالأسهم بيرقّم من 1", async () => {
+    const ids = app.db.prepare(`SELECT id FROM episodes WHERE series_id = ? ORDER BY order_index DESC`).all(seriesId).map(r => r.id);
+    await app.call("POST", "/admin/content/reorder", { token: admin, body: { kind: "episodes", ids } });
+    const nums = app.db.prepare(`SELECT order_index FROM episodes WHERE series_id = ? ORDER BY order_index`).all(seriesId).map(r => r.order_index);
+    assert.deepEqual(nums, [1, 2, 3]);
+  });
+});

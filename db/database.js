@@ -43,5 +43,22 @@ addColumnIfMissing("episodes", "summary", "TEXT");
 addColumnIfMissing("episodes", "summary_url", "TEXT");
 addColumnIfMissing("tests", "episode_id", "INTEGER REFERENCES episodes(id) ON DELETE CASCADE");
 
+// رقم الحلقة = order_index (1، 2، 3...) ومينفعش يتكرر في نفس السلسلة.
+// أي سلسلة أرقامها مكررة أو فيها صفر (البيانات القديمة كانت بتبدأ من 0) بتترقّم من 1 بنفس ترتيبها الحالي.
+(function renumberEpisodes() {
+  const bad = db.prepare(
+    `SELECT series_id FROM episodes GROUP BY series_id
+     HAVING MIN(order_index) < 1 OR COUNT(DISTINCT order_index) < COUNT(*)`
+  ).all();
+  if (!bad.length) return;
+  const list = db.prepare(`SELECT id FROM episodes WHERE series_id = ? ORDER BY order_index ASC, id ASC`);
+  const set = db.prepare(`UPDATE episodes SET order_index = ? WHERE id = ?`);
+  db.exec("BEGIN");
+  try {
+    for (const { series_id } of bad) list.all(series_id).forEach((e, i) => set.run(i + 1, e.id));
+    db.exec("COMMIT");
+  } catch (err) { db.exec("ROLLBACK"); throw err; }
+})();
+
 db.DB_PATH = DB_PATH;
 module.exports = db;

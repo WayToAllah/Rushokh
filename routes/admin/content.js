@@ -197,6 +197,24 @@ router.delete("/series/:id", (req, res) => {
 });
 
 // ---------- الحلقات ----------
+// رقم الحلقة (order_index) بيبدأ من 1 ومينفعش يتكرر في نفس السلسلة
+function nextEpisodeNumber(seriesId) {
+  return db.prepare(`SELECT COALESCE(MAX(order_index), 0) + 1 AS n FROM episodes WHERE series_id = ?`).get(seriesId).n;
+}
+
+// بيرجّع { value } أو { error } — exceptId: الحلقة اللي بتتعدل نفسها
+function checkEpisodeNumber(seriesId, raw, exceptId = null) {
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1 || n > 9999) return { error: "رقم الحلقة لازم يكون رقم صحيح من 1 لـ 9999." };
+  const taken = db.prepare(
+    `SELECT id, title FROM episodes WHERE series_id = ? AND order_index = ? AND id != ?`
+  ).get(seriesId, n, exceptId || 0);
+  if (taken) {
+    return { error: `الرقم ${n} مستخدم بالفعل للحلقة "${taken.title}" في نفس السلسلة. أول رقم فاضي: ${nextEpisodeNumber(seriesId)}.` };
+  }
+  return { value: n };
+}
+
 router.post("/episodes", (req, res) => {
   const { series_id } = req.body;
   const title = text(req.body.title, 200);
@@ -207,15 +225,32 @@ router.post("/episodes", (req, res) => {
   if (!link.ok) return res.status(400).json({ error: "رابط الحلقة يجب أن يبدأ بـ http:// أو https://" });
   const summaryLink = safeUrl(req.body.summary_url);
   if (!summaryLink.ok) return res.status(400).json({ error: "رابط ملف الملخص يجب أن يبدأ بـ http:// أو https://" });
+  // رقم الحلقة اختياري: لو مش مكتوب بتاخد الرقم اللي بعد آخر حلقة
+  let number = nextEpisodeNumber(series_id);
+  if (req.body.number !== undefined && req.body.number !== null && String(req.body.number).trim() !== "") {
+    const chk = checkEpisodeNumber(series_id, req.body.number);
+    if (chk.error) return res.status(400).json({ error: chk.error });
+    number = chk.value;
+  }
   const info = db.prepare(
     `INSERT INTO episodes (series_id, title, url, duration, summary, summary_url, order_index) VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).run(series_id, title, link.value, text(req.body.duration, 30), text(req.body.summary, 50000), summaryLink.value,
-        nextOrder("episodes", "series_id", series_id));
-  res.status(201).json({ id: Number(info.lastInsertRowid), title });
+  ).run(series_id, title, link.value, text(req.body.duration, 30), text(req.body.summary, 50000), summaryLink.value, number);
+  res.status(201).json({ id: Number(info.lastInsertRowid), title, number });
 });
 
 router.patch("/episodes/:id", (req, res) => {
+  req.body = { ...req.body };
+  delete req.body.order_index; // الترتيب بيتغير بس من "number" (بعد التأكد إنه مش متكرر) أو من ↑↓
+  if ("number" in req.body) {
+    const ep = db.prepare(`SELECT id, series_id FROM episodes WHERE id = ?`).get(req.params.id);
+    if (!ep) return res.status(404).json({ error: "العنصر غير موجود." });
+    const chk = checkEpisodeNumber(ep.series_id, req.body.number, ep.id);
+    if (chk.error) return res.status(400).json({ error: chk.error });
+    req.body = { ...req.body, order_index: chk.value };
+    delete req.body.number;
+  }
   sendPatch(res, patchRow("episodes", req.params.id, req.body, {
+    order_index: v => ({ ok: true, value: v }), // اتأكدنا منه فوق
     title: required("عنوان الحلقة", 200),
     url: urlField("رابط الحلقة"),
     duration: optional(30),
@@ -275,7 +310,9 @@ router.post("/reorder", (req, res) => {
   const stmt = db.prepare(`UPDATE ${table} SET order_index = ? WHERE id = ?`);
   db.exec("BEGIN");
   try {
-    ids.forEach((id, i) => stmt.run(i, id));
+    // الحلقات أرقامها من 1 (رقم الحلقة اللي بيظهر للمشرف)، والباقي ترتيب داخلي من 0
+    const start = table === "episodes" ? 1 : 0;
+    ids.forEach((id, i) => stmt.run(i + start, id));
     db.exec("COMMIT");
   } catch (err) {
     db.exec("ROLLBACK");

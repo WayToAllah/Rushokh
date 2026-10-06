@@ -62,7 +62,7 @@ function seed({ adminEmail = "admin@rasokh.test", adminPassword = "admin123", de
   ).lastInsertRowid);
   const introEpisodeIds = [["فضل العلم وآدابه", "25 د"], ["كيف تطلب العلم", "30 د"]].map(([title, duration], i) =>
     Number(run(`INSERT INTO episodes (series_id, title, duration, order_index) VALUES (?, ?, ?, ?)`,
-      [introSeries, title, duration, i]).lastInsertRowid)
+      [introSeries, title, duration, i + 1]).lastInsertRowid)
   );
   const introBookId = Number(run(`INSERT INTO books (series_id, title, total_pages) VALUES (?, ?, ?)`,
     [introSeries, "حلية طالب العلم", 40]).lastInsertRowid);
@@ -104,7 +104,7 @@ function seed({ adminEmail = "admin@rasokh.test", adminPassword = "admin123", de
   fiqhEpisodes.forEach(([title, duration], i) => {
     run(
       `INSERT INTO episodes (series_id, title, duration, order_index) VALUES (?, ?, ?, ?)`,
-      [seriesFiqh, title, duration, i]
+      [seriesFiqh, title, duration, i + 1]
     );
   });
   run(
@@ -156,7 +156,7 @@ function seed({ adminEmail = "admin@rasokh.test", adminPassword = "admin123", de
   [["تفسير سورة النبأ", "52 د"], ["تفسير سورة النازعات", "47 د"], ["تفسير سورة عبس", "33 د"]]
     .forEach(([title, duration], i) => {
       run(`INSERT INTO episodes (series_id, title, duration, order_index) VALUES (?, ?, ?, ?)`,
-        [seriesTafsir, title, duration, i]);
+        [seriesTafsir, title, duration, i + 1]);
     });
   run(`INSERT INTO books (series_id, title, total_pages) VALUES (?, ?, ?)`,
     [seriesTafsir, "تفسير جزء عم - ابن عثيمين", 180]);
@@ -169,7 +169,7 @@ function seed({ adminEmail = "admin@rasokh.test", adminPassword = "admin123", de
   [["حديث إنما الأعمال بالنيات", "44 د"], ["حديث بني الإسلام على خمس", "39 د"]]
     .forEach(([title, duration], i) => {
       run(`INSERT INTO episodes (series_id, title, duration, order_index) VALUES (?, ?, ?, ?)`,
-        [seriesHadith, title, duration, i]);
+        [seriesHadith, title, duration, i + 1]);
     });
   run(`INSERT INTO books (series_id, title, total_pages) VALUES (?, ?, ?)`,
     [seriesHadith, "متن الأربعين النووية", 16]);

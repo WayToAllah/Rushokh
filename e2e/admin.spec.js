@@ -24,6 +24,25 @@ test.describe("لوحة المشرف", () => {
     await expect(page.locator("#msg-episode")).toContainText("http://");
   });
 
+  test("رقم الحلقة بيتملى لوحده، والرقم المكرر بيترفض قبل ما يتبعت، والسلسلة بتفضل مختارة بعد الإضافة", async ({ page }) => {
+    const num = page.locator("#episodeNumber");
+    const intro = await page.locator("#episodeSeries option", { hasText: "مدخل إلى طلب العلم" }).first().getAttribute("value");
+    await page.locator("#episodeSeries").selectOption(intro);
+    await expect(page.locator("#episodeNumberHint")).toContainText("الأرقام المستخدمة");
+    const next = Number(await num.inputValue());
+    await num.fill("1");
+    await expect(page.locator("#episodeNumberHint")).toContainText("الرقم 1 مستخدم");
+    await page.locator("#episodeTitle").fill("حلقة مكررة");
+    await page.locator("#formEpisode").getByRole("button", { name: "إضافة" }).click();
+    await expect(page.locator("#msg-episode")).toContainText("الرقم 1 مستخدم");
+    await num.fill(String(next));
+    const series = await page.locator("#episodeSeries").inputValue();
+    await page.locator("#formEpisode").getByRole("button", { name: "إضافة" }).click();
+    await expect(page.locator("#msg-episode")).toHaveText("تمت إضافة الحلقة.");
+    await expect(page.locator("#episodeSeries")).toHaveValue(series);
+    await expect(num).toHaveValue(String(next + 1));
+  });
+
   test("سؤال من غير نص وخيارات بيقول الخانات الناقصة بالاسم", async ({ page }) => {
     await page.locator('.tab-btn[data-tab="tests"]').click();
     await page.locator("#formQuestion").getByRole("button").last().click();

@@ -249,8 +249,13 @@
       <form id="formEpisode">
         <label>السلسلة</label>
         <select id="episodeSeries" required></select>
-        <label>عنوان الحلقة</label>
-        <input type="text" id="episodeTitle" required>
+        <div class="row-2">
+          <div style="max-width:140px;"><label for="episodeNumber">رقم الحلقة</label>
+            <input type="number" id="episodeNumber" min="1" max="9999" required></div>
+          <div><label for="episodeTitle">عنوان الحلقة</label>
+            <input type="text" id="episodeTitle" required></div>
+        </div>
+        <p class="hint" id="episodeNumberHint" style="margin-top:-6px;"></p>
         <div class="row-2">
           <div><label>المدة (مثال: 40 د)</label><input type="text" id="episodeDuration"></div>
           <div><label>رابط الحلقة (اختياري)</label><input type="url" id="episodeUrl" placeholder="https://" dir="ltr"></div>
@@ -586,7 +591,10 @@ function populateTestAndQuestionSelects(tree, tests) {
   episodesBySeries = {};
   tree.forEach(stage => stage.subjects.forEach(subj => subj.series.forEach(s => { episodesBySeries[s.id] = s.episodes; })));
   fillTestEpisodes();
+  fillEpisodeNumber();
+  const keepEpSeries = document.getElementById("episodeSeries").value;
   document.getElementById("episodeSeries").innerHTML = seriesOpts;
+  if (keepEpSeries) document.getElementById("episodeSeries").value = keepEpSeries;
   document.getElementById("bookSeries").innerHTML = seriesOpts;
   document.getElementById("questionTest").innerHTML = options(tests, "id", t => `${t.title} (${t.episode_title ? "حلقة " + t.episode_title : t.series_name})`);
   document.getElementById("seriesStageSubject").innerHTML =
@@ -602,7 +610,8 @@ function bindForm(formId, msgId, path, buildBody, okText, resetAfter = true) {
     try {
       await apiFetch(path, { method: "POST", body: JSON.stringify(buildBody()) });
       showMsg(msgId, okText, true);
-      if (resetAfter) e.target.reset();
+      if (typeof resetAfter === "function") resetAfter(e.target);
+      else if (resetAfter) e.target.reset();
       await refreshAll();
     } catch (err) {
       showMsg(msgId, err.message, false);
@@ -623,9 +632,45 @@ bindForm("formLink", "msg-link", "/admin/content/stage-subject",
 bindForm("formSeries", "msg-series", "/admin/content/series",
   () => ({ stage_subject_id: num("seriesStageSubject"), name: val("seriesName"), url: val("seriesUrl") }), "تمت إضافة السلسلة.");
 bindForm("formEpisode", "msg-episode", "/admin/content/episodes",
-  () => ({ series_id: num("episodeSeries"), title: val("episodeTitle"), duration: val("episodeDuration"), url: val("episodeUrl"),
-           summary: val("episodeSummary"), summary_url: val("episodeSummaryUrl") }),
-  "تمت إضافة الحلقة.");
+  () => ({ series_id: num("episodeSeries"), number: num("episodeNumber"), title: val("episodeTitle"), duration: val("episodeDuration"),
+           url: val("episodeUrl"), summary: val("episodeSummary"), summary_url: val("episodeSummaryUrl") }),
+  "تمت إضافة الحلقة.",
+  // السلسلة بتفضل زي ما هي عشان تضيف الحلقة اللي بعدها على طول، والرقم بيتملى بالرقم الجاي
+  form => {
+    const keep = form.querySelector("#episodeSeries").value;
+    form.reset();
+    form.querySelector("#episodeSeries").value = keep;
+  });
+
+// رقم الحلقة: بيتملى لوحده بأول رقم بعد آخر حلقة، وبينبّه لو الرقم المكتوب مستخدم
+function episodeNumbersUsed(seriesId) {
+  return new Map((episodesBySeries[seriesId] || []).map(e => [Number(e.order_index), e.title]));
+}
+function fillEpisodeNumber() {
+  const used = episodeNumbersUsed(document.getElementById("episodeSeries").value);
+  const next = used.size ? Math.max(...used.keys()) + 1 : 1;
+  document.getElementById("episodeNumber").value = next;
+  checkEpisodeNumberField();
+}
+function checkEpisodeNumberField() {
+  const input = document.getElementById("episodeNumber");
+  const hint = document.getElementById("episodeNumberHint");
+  const used = episodeNumbersUsed(document.getElementById("episodeSeries").value);
+  const n = Number(input.value);
+  if (used.has(n)) {
+    hint.textContent = `⚠️ الرقم ${n} مستخدم للحلقة "${used.get(n)}". اختار رقم تاني.`;
+    hint.style.color = "var(--terracotta)";
+    input.setCustomValidity("الرقم مستخدم");
+    input.dataset.invalidMsg = hint.textContent.replace("⚠️ ", "");
+  } else {
+    hint.textContent = used.size ? `الأرقام المستخدمة في السلسلة دي: من 1 لـ ${Math.max(...used.keys())}` : "دي أول حلقة في السلسلة.";
+    hint.style.color = "";
+    input.setCustomValidity("");
+    delete input.dataset.invalidMsg;
+  }
+}
+document.getElementById("episodeSeries").addEventListener("change", fillEpisodeNumber);
+document.getElementById("episodeNumber").addEventListener("input", checkEpisodeNumberField);
 bindForm("formBook", "msg-book", "/admin/content/books",
   () => ({ series_id: num("bookSeries"), title: val("bookTitle"), total_pages: num("bookPages") || 0, file_url: val("bookUrl") }),
   "تمت إضافة الكتاب.");
@@ -1098,6 +1143,7 @@ function renderTree(tree) {
                       editables["episode:" + e.id] = {
                         title: "تعديل الحلقة", path: "/admin/content/episodes/" + e.id,
                         fields: [
+                          { name: "number", label: "رقم الحلقة (مينفعش يتكرر في نفس السلسلة)", type: "number", value: e.order_index, min: 1, max: 9999, required: true },
                           { name: "title", label: "عنوان الحلقة", value: e.title, required: true },
                           { name: "duration", label: "المدة (مثال: 40 د)", value: e.duration || "" },
                           { name: "url", label: "رابط الحلقة", type: "url", value: e.url || "", placeholder: "https://" },
@@ -1105,7 +1151,7 @@ function renderTree(tree) {
                           { name: "summary_url", label: "رابط ملف الملخص (PDF مثلاً)", type: "url", value: e.summary_url || "", placeholder: "https://" },
                         ],
                       };
-                      return `<li><span>▶️ ${esc(e.title)}${e.url ? "" : ' <span class="muted">(من غير رابط)</span>'}${e.summary || e.summary_url ? ' <span class="muted" title="فيه ملخص">📄</span>' : ""}</span><span class="actions">${openLink(e.url, "فتح الحلقة")}${moveBtns("episodes", epGroup, e.id, ei, s.episodes.length)}${editBtn("episode:" + e.id)}${delBtn("episodes", e.id)}</span></li>`;
+                      return `<li><span>▶️ <strong>${esc(e.order_index)}.</strong> ${esc(e.title)}${e.url ? "" : ' <span class="muted">(من غير رابط)</span>'}${e.summary || e.summary_url ? ' <span class="muted" title="فيه ملخص">📄</span>' : ""}</span><span class="actions">${openLink(e.url, "فتح الحلقة")}${moveBtns("episodes", epGroup, e.id, ei, s.episodes.length)}${editBtn("episode:" + e.id)}${delBtn("episodes", e.id)}</span></li>`;
                     }).join("")}
                     ${s.books.map((b, bi) => {
                       editables["book:" + b.id] = {
