@@ -26,6 +26,8 @@ test.describe("لوحة المشرف", () => {
 
   test("رقم الحلقة بيتملى لوحده، والرقم المكرر بيترفض قبل ما يتبعت، والسلسلة بتفضل مختارة بعد الإضافة", async ({ page }) => {
     const num = page.locator("#episodeNumber");
+    // نستنى المحتوى يتحمّل الأول، عشان التحميل ما يرجّعش الرقم بعد ما نكتبه
+    await expect(page.locator("#contentTree .tree-series").first()).toBeAttached();
     const intro = await page.locator("#episodeSeries option", { hasText: "مدخل إلى طلب العلم" }).first().getAttribute("value");
     await page.locator("#episodeSeries").selectOption(intro);
     await expect(page.locator("#episodeNumberHint")).toContainText("الأرقام المستخدمة");
