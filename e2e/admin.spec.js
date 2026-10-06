@@ -41,6 +41,15 @@ test.describe("لوحة المشرف", () => {
     await expect(page.locator("#msg-episode")).toHaveText("تمت إضافة الحلقة.");
     await expect(page.locator("#episodeSeries")).toHaveValue(series);
     await expect(num).toHaveValue(String(next + 1));
+
+    // نمسح الحلقة التجريبية عشان اختبارات الطالب بتعد حلقات التمهيدية
+    await page.evaluate(async ({ seriesId, title }) => {
+      const headers = { Authorization: "Bearer " + localStorage.getItem("rasokh_token"), "Content-Type": "application/json" };
+      const tree = await (await fetch("/api/admin/content/tree", { headers })).json();
+      const ep = tree.flatMap(st => st.subjects).flatMap(x => x.series).find(x => String(x.id) === seriesId)
+        .episodes.find(e => e.title === title);
+      await fetch("/api/admin/content/episodes/" + ep.id, { method: "DELETE", headers });
+    }, { seriesId: series, title: "حلقة مكررة" });
   });
 
   test("سؤال من غير نص وخيارات بيقول الخانات الناقصة بالاسم", async ({ page }) => {
