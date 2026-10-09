@@ -84,7 +84,10 @@
 
   /* ===== Tree view ===== */
   .tree-tools{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:4px 0 14px;}
-  .tree-tools input{flex:1; min-width:200px; margin:0;}
+  .tree-tools{flex-wrap:nowrap;}
+  .tree-tools input{flex:1; min-width:0; margin:0;}
+  .arrow-btn{background:none; border:0; padding:4px; color:var(--gold); line-height:0; border-radius:6px; cursor:pointer;}
+  .arrow-btn:hover{color:var(--teal-700);}
   .tree-toggle{background:none; border:0; padding:0 4px; font:inherit; color:inherit; cursor:pointer; display:inline-flex; align-items:center; gap:6px; text-align:start;}
   .tree-toggle .chev{display:inline-block; transition:transform .15s; font-size:.8em; color:var(--gold);}
   .collapsed > .head .tree-toggle .chev{transform:rotate(90deg);}
@@ -302,8 +305,8 @@
     <p class="hint">✏️ لتعديل أي عنصر، و↑↓ لتغيير ترتيبه (الطالب بيشوف نفس الترتيب). 🗑 بيحذف العنصر وكل اللي جواه ومعاه تقدم الطلاب فيه، فاستخدم ✏️ لو محتاج تصلّح غلطة.</p>
     <div class="tree-tools">
       <input type="search" id="treeSearch" placeholder="🔍 ابحث عن مرحلة أو قسم أو سلسلة أو حلقة أو كتاب..." aria-label="بحث في المحتوى">
-      <button class="btn small outline" type="button" id="treeExpandAll">فتح الكل</button>
-      <button class="btn small outline" type="button" id="treeCollapseAll">قفل الكل</button>
+      <button class="arrow-btn" type="button" id="treeExpandAll" title="فتح الكل" aria-label="فتح الكل"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 6l6 6 6-6M6 12l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button class="arrow-btn" type="button" id="treeCollapseAll" title="قفل الكل" aria-label="قفل الكل"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 18l6-6 6 6M6 12l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     </div>
     <p class="empty-note" id="treeNoResults" hidden>مفيش نتايج للبحث ده.</p>
     <div id="contentTree">جارٍ التحميل...</div>

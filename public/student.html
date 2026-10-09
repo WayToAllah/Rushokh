@@ -456,8 +456,10 @@
   .cur-tools{ max-width:900px; margin:0 auto 14px; padding:0 16px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
   .cur-tools input{ flex:1; min-width:200px; padding:10px 14px; border:1px solid var(--line); border-radius:999px; font-family:inherit; font-size:.9rem; background:var(--bg-raised); }
   .cur-tools input:focus{ outline:none; border-color:var(--teal-700); }
-  .pill-mini{ background:var(--bg-raised); border:1px solid var(--line); color:var(--teal-900); padding:8px 14px; border-radius:999px; font-size:.78rem; }
-  .pill-mini:hover{ border-color:var(--teal-700); }
+  .arrow-btn{ background:none; border:0; padding:4px; color:var(--gold); line-height:0; border-radius:6px; }
+  .arrow-btn:hover{ color:var(--teal-700); }
+  .cur-tools{ flex-wrap:nowrap; }
+  .cur-tools input{ min-width:0; }
   .search-head{ font-size:.85rem; color:var(--ink-soft); margin:0 0 10px; }
   .search-result{ display:flex; gap:12px; align-items:center; padding:12px 14px; background:var(--bg-raised); border:1px solid var(--line); border-radius:10px; margin-bottom:8px; text-decoration:none; color:inherit; }
   .search-result:hover{ border-color:var(--teal-700); }
@@ -537,8 +539,6 @@
     .lesson-panel{ padding:14px; }
     .nav-btn{ max-width:46vw; }
     .lesson-tabs{ gap:0; }
-    .cur-tools input{ flex:1 1 100%; }
-    .cur-tools .pill-mini{ flex:1; }
     .lesson-tabs button{ padding:10px 7px; font-size:.78rem; flex:1 0 auto; }
   }
   @media (prefers-reduced-motion: reduce){ .toast{ transition:none; } }
@@ -577,8 +577,8 @@
 
 <div class="cur-tools" id="curTools">
   <input type="search" id="curSearch" placeholder="🔍 ابحث عن درس أو كتاب أو سلسلة..." aria-label="بحث في المنهج" autocomplete="off">
-  <button type="button" class="pill-mini" id="curExpand">فتح الكل</button>
-  <button type="button" class="pill-mini" id="curCollapse">قفل الكل</button>
+  <button type="button" class="arrow-btn" id="curExpand" title="فتح الكل" aria-label="فتح الكل"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 6l6 6 6-6M6 12l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  <button type="button" class="arrow-btn" id="curCollapse" title="قفل الكل" aria-label="قفل الكل"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 18l6-6 6 6M6 12l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
 </div>
 <main class="curriculum" id="searchResults" hidden></main>
 <main class="curriculum" id="curriculumRoot"></main>
