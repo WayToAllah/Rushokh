@@ -456,8 +456,6 @@
   .cur-tools{ max-width:900px; margin:0 auto 14px; padding:0 16px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
   .cur-tools input{ flex:1; min-width:200px; padding:10px 14px; border:1px solid var(--line); border-radius:999px; font-family:inherit; font-size:.9rem; background:var(--bg-raised); }
   .cur-tools input:focus{ outline:none; border-color:var(--teal-700); }
-  .arrow-btn{ background:none; border:0; padding:4px; color:var(--gold); line-height:0; border-radius:6px; }
-  .arrow-btn:hover{ color:var(--teal-700); }
   .cur-tools{ flex-wrap:nowrap; }
   .cur-tools input{ min-width:0; }
   .search-head{ font-size:.85rem; color:var(--ink-soft); margin:0 0 10px; }
@@ -468,8 +466,7 @@
   .search-result strong{ color:var(--teal-900); font-size:.92rem; }
   .search-result small{ color:var(--ink-soft); font-size:.74rem; }
   .series-toggle{ background:none; border:0; padding:4px 0; display:flex; align-items:center; gap:8px; font:inherit; color:inherit; text-align:start; flex:1; min-width:0; }
-  .series-toggle .chev{ color:var(--gold); font-size:.8rem; transition:transform .15s; transform:rotate(90deg); }
-  .series-block.open .series-toggle .chev{ transform:none; }
+  .series-block.open .series-toggle .chevron{ transform:rotate(180deg); }
   .series-toggle .series-title::before{ content:none; }
   .series-count{ font-size:.72rem; color:var(--ink-soft); margin-inline-start:auto; padding-inline-start:8px; white-space:nowrap; }
   .series-block:not(.open) .series-items{ display:none; }
@@ -577,8 +574,6 @@
 
 <div class="cur-tools" id="curTools">
   <input type="search" id="curSearch" placeholder="🔍 ابحث عن درس أو كتاب أو سلسلة..." aria-label="بحث في المنهج" autocomplete="off">
-  <button type="button" class="arrow-btn" id="curExpand" title="فتح الكل" aria-label="فتح الكل"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 6l6 6 6-6M6 12l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-  <button type="button" class="arrow-btn" id="curCollapse" title="قفل الكل" aria-label="قفل الكل"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 18l6-6 6 6M6 12l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
 </div>
 <main class="curriculum" id="searchResults" hidden></main>
 <main class="curriculum" id="curriculumRoot"></main>
@@ -999,18 +994,6 @@ function openFirstSubjectIfNone() {
   if (series) openSeries.add(String(series.id));
 }
 
-// فتح الكل / قفل الكل للمرحلة المعروضة
-function setAllOpen(open) {
-  const stage = viewedStage();
-  if (!stage) return;
-  autoOpened.add(stage.id);
-  stage.subjects.forEach(subject => {
-    const key = stage.id + ":" + subject.id;
-    if (open) openSubjects.add(key); else openSubjects.delete(key);
-    subject.series.forEach(se => { if (open) openSeries.add(String(se.id)); else openSeries.delete(String(se.id)); });
-  });
-  renderCurriculum();
-}
 
 /* ======================= البحث في المنهج ======================= */
 // بيدوّر في كل المراحل المفتوحة للطالب بس (المقفولة ما بتوصلش من السيرفر أصلاً)
@@ -1133,9 +1116,9 @@ function renderCurriculum() {
       block.innerHTML = `
         <div class="series-head">
           <button type="button" class="series-toggle" aria-expanded="${openSeries.has(seriesKey)}">
-            <span class="chev" aria-hidden="true">▾</span>
             <span class="series-title">${esc(series.name)}</span>
             <span class="series-count">${epDone} من ${series.episodes.length} حلقة</span>
+            <span class="chevron" aria-hidden="true">▾</span>
           </button>
           ${seriesBtn}
         </div>
@@ -1870,8 +1853,6 @@ async function loadComments() {
 /* ======================= بداية الصفحة ======================= */
 window.addEventListener("hashchange", route);
 document.getElementById("curSearch").addEventListener("input", renderSearch);
-document.getElementById("curExpand").addEventListener("click", () => setAllOpen(true));
-document.getElementById("curCollapse").addEventListener("click", () => setAllOpen(false));
 // لما الطالب يرجع للصفحة بعد ما كان في تاب أو برنامج تاني: المنهج بيتحدّث لوحده (محتوى جديد، تصحيح المشرف...)
 document.addEventListener("visibilitychange", () => {
   if (document.hidden || !authToken || !curriculumData || document.querySelector(".overlay.show")) return;

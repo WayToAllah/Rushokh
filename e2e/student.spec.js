@@ -32,7 +32,7 @@ test.describe("صفحة الطالب", () => {
     await expect(page.locator(".stage-banner")).toContainText("1 من 2 حلقة");
   });
 
-  test("البحث بيلاقي الدروس المفتوحة بس، وفتح وقفل الكل، ومسار الدرس بيفتح السلسلة", async ({ page, request }) => {
+  test("البحث بيلاقي الدروس المفتوحة بس، ومسار الدرس بيفتح السلسلة، والسلسلة بتتفتح وتتقفل بالسهم", async ({ page, request }) => {
     await openAsNewStudent(page, request);
     const title = await page.locator(".item-title-link").first().textContent();
     // مرحلة مقفولة: الطالب الجديد ما يلاقيش حاجة منها
@@ -50,17 +50,12 @@ test.describe("صفحة الطالب", () => {
     await expect(page.locator("#curSearch")).toHaveValue("");
     await expect(page.locator(".series-block.open").first()).toBeVisible();
 
-    await page.locator("#curCollapse").click();
-    await expect(page.locator(".subject-card.open")).toHaveCount(0);
-    await expect(page.locator(".series-block.open")).toHaveCount(0);
-    await page.locator("#curExpand").click();
-    await expect(page.locator(".subject-card.open").first()).toBeVisible();
-    await expect(page.locator(".series-block.open").first()).toBeVisible();
-    // السلسلة بتتقفل وتتفتح لوحدها
     const series = page.locator(".series-block").first();
     await series.locator(".series-toggle").click();
     await expect(series).not.toHaveClass(/open/);
     await expect(series.locator(".item-row").first()).toBeHidden();
+    await series.locator(".series-toggle").click();
+    await expect(series.locator(".item-row").first()).toBeVisible();
   });
 
   test("حلقة ليها فيديو وكتاب ليه ملف: الدرس بيفتح في صفحته، والرجوع بيرجّع للمنهج من غير ما الحالة تتغير", async ({ page, request }) => {
