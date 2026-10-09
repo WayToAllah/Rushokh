@@ -83,6 +83,14 @@
   .msg.err{background:rgba(168,80,58,.1); color:var(--terracotta); display:block;}
 
   /* ===== Tree view ===== */
+  .tree-tools{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:4px 0 14px;}
+  .tree-tools input{flex:1; min-width:200px; margin:0;}
+  .tree-toggle{background:none; border:0; padding:0 4px; font:inherit; color:inherit; cursor:pointer; display:inline-flex; align-items:center; gap:6px; text-align:start;}
+  .tree-toggle .chev{display:inline-block; transition:transform .15s; font-size:.8em; color:var(--gold);}
+  .collapsed > .head .tree-toggle .chev{transform:rotate(90deg);}
+  .collapsed:not(.search-open) > .tree-body{display:none;}
+  .search-hide{display:none !important;}
+  .tree-count{font-size:.72rem; color:var(--ink-soft); font-weight:400;}
   .tree-stage{border:1px solid var(--line); border-radius:12px; margin-bottom:14px; overflow:hidden; background:var(--bg-raised);}
   .tree-stage > .head{padding:12px 16px; background:rgba(185,146,79,.08); display:flex; justify-content:space-between; align-items:center;}
   .tree-stage > .head strong{color:var(--teal-900);}
@@ -292,6 +300,12 @@
   <div class="panel-card">
     <h3>الشجرة الكاملة للمحتوى</h3>
     <p class="hint">✏️ لتعديل أي عنصر، و↑↓ لتغيير ترتيبه (الطالب بيشوف نفس الترتيب). 🗑 بيحذف العنصر وكل اللي جواه ومعاه تقدم الطلاب فيه، فاستخدم ✏️ لو محتاج تصلّح غلطة.</p>
+    <div class="tree-tools">
+      <input type="search" id="treeSearch" placeholder="🔍 ابحث عن مرحلة أو قسم أو سلسلة أو حلقة أو كتاب..." aria-label="بحث في المحتوى">
+      <button class="btn small outline" type="button" id="treeExpandAll">فتح الكل</button>
+      <button class="btn small outline" type="button" id="treeCollapseAll">قفل الكل</button>
+    </div>
+    <p class="empty-note" id="treeNoResults" hidden>مفيش نتايج للبحث ده.</p>
     <div id="contentTree">جارٍ التحميل...</div>
   </div>
 </section>
@@ -433,6 +447,7 @@
 </div>
 
 <script src="logo.js"></script>
+<script src="search.js"></script>
 <script src="password-eye.js"></script>
 <script src="dialog.js"></script>
 <script src="forms.js"></script>
@@ -1070,6 +1085,85 @@ function moveBtns(kind, groupKey, id, index, count) {
   </span>`;
 }
 
+/* ----- فتح وقفل الشجرة + البحث ----- */
+// حالة الفتح بتتحفظ في المتصفح، عشان التحديث بعد أي تعديل ما يقفلش اللي كنت فاتحه
+let treeState = {};
+try { treeState = JSON.parse(localStorage.getItem("rasokh_tree_open") || "{}"); } catch (e) { treeState = {}; }
+function treeIsOpen(key) { return key in treeState ? treeState[key] : key.startsWith("stage:"); }
+function saveTreeState() { try { localStorage.setItem("rasokh_tree_open", JSON.stringify(treeState)); } catch (e) {} }
+
+function bindTreeUi(el) {
+  el.querySelectorAll(".tree-toggle").forEach(btn => {
+    const box = btn.closest("[data-key]");
+    btn.setAttribute("aria-expanded", String(!box.classList.contains("collapsed")));
+    btn.addEventListener("click", () => {
+      const open = box.classList.toggle("collapsed") === false;
+      btn.setAttribute("aria-expanded", String(open));
+      treeState[box.dataset.key] = open;
+      saveTreeState();
+    });
+  });
+  applyTreeSearch();
+}
+
+function setAllTree(open) {
+  document.querySelectorAll("#contentTree [data-key]").forEach(box => {
+    box.classList.toggle("collapsed", !open);
+    treeState[box.dataset.key] = open;
+    const t = box.querySelector(":scope > .head .tree-toggle");
+    if (t) t.setAttribute("aria-expanded", String(open));
+  });
+  saveTreeState();
+}
+
+// البحث: بيخفي اللي مش مطابق، وبيفتح الأماكن اللي فيها نتايج (من غير ما يغيّر الفتح/القفل المحفوظ)
+function applyTreeSearch() {
+  const q = document.getElementById("treeSearch").value.trim();
+  const root = document.getElementById("contentTree");
+  root.querySelectorAll(".search-hide, .search-open").forEach(x => x.classList.remove("search-hide", "search-open"));
+  document.getElementById("treeNoResults").hidden = true;
+  if (!q) return;
+  const hit = node => RasokhSearch.matches(node.dataset.search, q);
+  let any = false;
+  root.querySelectorAll(".tree-stage").forEach(stage => {
+    const stageHit = hit(stage);
+    let stageShow = stageHit;
+    stage.querySelectorAll(".tree-subject").forEach(subj => {
+      const subjHit = stageHit || hit(subj);
+      let subjShow = subjHit;
+      subj.querySelectorAll(".tree-series").forEach(series => {
+        const seriesHit = subjHit || hit(series);
+        let seriesShow = seriesHit;
+        series.querySelectorAll("li[data-search]").forEach(li => {
+          const show = seriesHit || hit(li);
+          li.classList.toggle("search-hide", !show);
+          if (show && !seriesHit) seriesShow = true;
+        });
+        series.classList.toggle("search-hide", !seriesShow);
+        if (seriesShow) series.classList.add("search-open");
+        if (seriesShow) subjShow = true;
+      });
+      subj.classList.toggle("search-hide", !subjShow);
+      if (subjShow) { subj.classList.add("search-open"); stageShow = true; }
+    });
+    stage.classList.toggle("search-hide", !stageShow);
+    if (stageShow) { stage.classList.add("search-open"); any = true; }
+  });
+  document.getElementById("treeNoResults").hidden = any;
+}
+document.getElementById("treeSearch").addEventListener("input", applyTreeSearch);
+
+// لما ترجع للصفحة بعد ما كنت في تاب تاني: البيانات بتتحدّث لوحدها (طلبة جداد، تعليقات، إجابات للتصحيح)
+// إلا لو فيه نافذة مفتوحة أو بتكتب في خانة، عشان ما نلخبطش اللي بتعمله
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden || document.querySelector(".overlay.show")) return;
+  const a = document.activeElement;
+  if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.id !== "treeSearch") return;
+  refreshAll().catch(() => {});
+});
+document.getElementById("treeExpandAll").addEventListener("click", () => setAllTree(true));
+document.getElementById("treeCollapseAll").addEventListener("click", () => setAllTree(false));
+
 // اختيار المكان في نافذة التعديل (عشان تنقل العنصر من غير ما تمسحه وتضيفه تاني)
 function placeOptions(list, valueKey, selected) {
   return list.map(x => `<option value="${esc(x[valueKey])}"${String(x[valueKey]) === String(selected) ? " selected" : ""}>${esc(x.label)}</option>`).join("");
@@ -1091,15 +1185,16 @@ function renderTree(tree) {
     const subjGroup = "ss:" + stage.id;
     orderGroups[subjGroup] = stage.subjects.map(s => s.stage_subject_id);
     return `
-    <div class="tree-stage">
+    <div class="tree-stage ${treeIsOpen("stage:" + stage.id) ? "" : "collapsed"}" data-key="stage:${esc(stage.id)}" data-search="${esc(stage.name)}">
       <div class="head">
-        <strong>📚 ${esc(stage.name)}</strong>
+        <button type="button" class="tree-toggle"><span class="chev">▾</span><strong>📚 ${esc(stage.name)}</strong> <span class="tree-count">${stage.subjects.length} قسم</span></button>
         <span class="actions">
           ${moveBtns("stages", "stages", stage.id, si, tree.length)}
           ${editBtn("stage:" + stage.id)}
           ${delBtn("stages", stage.id, "🗑 حذف المرحلة")}
         </span>
       </div>
+      <div class="tree-body">
       ${stage.subjects.length === 0
         ? `<p class="empty-note" style="padding:10px 16px;">لا يوجد أقسام مربوطة بهذه المرحلة.</p>`
         : stage.subjects.map((subj, sbi) => {
@@ -1113,15 +1208,16 @@ function renderTree(tree) {
           const seriesGroup = "series:" + subj.stage_subject_id;
           orderGroups[seriesGroup] = subj.series.map(s => s.id);
           return `
-          <div class="tree-subject">
+          <div class="tree-subject ${treeIsOpen("subj:" + subj.stage_subject_id) ? "" : "collapsed"}" data-key="subj:${esc(subj.stage_subject_id)}" data-search="${esc(subj.name)}">
             <div class="head">
-              <span>${esc(subj.icon || "")} ${esc(subj.name)}</span>
+              <button type="button" class="tree-toggle"><span class="chev">▾</span><span>${esc(subj.icon || "")} ${esc(subj.name)}</span> <span class="tree-count">${subj.series.length} سلسلة</span></button>
               <span class="actions">
                 ${moveBtns("stage-subject", subjGroup, subj.stage_subject_id, sbi, stage.subjects.length)}
                 ${editBtn("subject:" + subj.subject_id)}
                 ${delBtn("stage-subject", subj.stage_subject_id, "🗑 فك الربط")}
               </span>
             </div>
+            <div class="tree-body">
             ${subj.series.length === 0
               ? `<p class="empty-note">لا يوجد سلاسل.</p>`
               : subj.series.map((s, sri) => {
@@ -1138,9 +1234,10 @@ function renderTree(tree) {
                 orderGroups[epGroup] = s.episodes.map(e => e.id);
                 orderGroups[bkGroup] = s.books.map(b => b.id);
                 return `
-                <div class="tree-series">
+                <div class="tree-series ${treeIsOpen("series:" + s.id) ? "" : "collapsed"}" data-key="series:${esc(s.id)}" data-search="${esc(s.name)}">
                   <div class="head">
-                    <span>◆ ${esc(s.name)}${s.url ? "" : ' <span class="muted">(من غير رابط)</span>'}</span>
+                    <button type="button" class="tree-toggle"><span class="chev">▾</span><span>◆ ${esc(s.name)}${s.url ? "" : ' <span class="muted">(من غير رابط)</span>'}</span>
+                      <span class="tree-count">${s.episodes.length} حلقة · ${s.books.length} كتاب${(s.tests || []).length ? ` · ${s.tests.length} اختبار` : ""}</span></button>
                     <span class="actions">
                       ${openLink(s.url, "فتح رابط السلسلة")}
                       ${moveBtns("series", seriesGroup, s.id, sri, subj.series.length)}
@@ -1148,7 +1245,7 @@ function renderTree(tree) {
                       ${delBtn("series", s.id, "🗑 حذف السلسلة")}
                     </span>
                   </div>
-                  <ul class="tree-item-list">
+                  <ul class="tree-item-list tree-body">
                     ${s.episodes.map((e, ei) => {
                       editables["episode:" + e.id] = {
                         title: "تعديل الحلقة", path: "/admin/content/episodes/" + e.id,
@@ -1163,7 +1260,7 @@ function renderTree(tree) {
                           { name: "summary_url", label: "رابط ملف الملخص (PDF مثلاً)", type: "url", value: e.summary_url || "", placeholder: "https://" },
                         ],
                       };
-                      return `<li><span>▶️ <strong>${esc(e.order_index)}.</strong> ${esc(e.title)}${e.url ? "" : ' <span class="muted">(من غير رابط)</span>'}${e.summary || e.summary_url ? ' <span class="muted" title="فيه ملخص">📄</span>' : ""}</span><span class="actions">${openLink(e.url, "فتح الحلقة")}${moveBtns("episodes", epGroup, e.id, ei, s.episodes.length)}${editBtn("episode:" + e.id)}${delBtn("episodes", e.id)}</span></li>`;
+                      return `<li data-search="${esc(e.order_index + " " + e.title)}"><span>▶️ <strong>${esc(e.order_index)}.</strong> ${esc(e.title)}${e.url ? "" : ' <span class="muted">(من غير رابط)</span>'}${e.summary || e.summary_url ? ' <span class="muted" title="فيه ملخص">📄</span>' : ""}</span><span class="actions">${openLink(e.url, "فتح الحلقة")}${moveBtns("episodes", epGroup, e.id, ei, s.episodes.length)}${editBtn("episode:" + e.id)}${delBtn("episodes", e.id)}</span></li>`;
                     }).join("")}
                     ${s.books.map((b, bi) => {
                       editables["book:" + b.id] = {
@@ -1175,17 +1272,20 @@ function renderTree(tree) {
                           { name: "file_url", label: "رابط الملف", type: "url", value: b.file_url || "", placeholder: "https://drive.google.com/..." },
                         ],
                       };
-                      return `<li><span>📖 ${esc(b.title)} (${esc(b.total_pages)} صفحة)${b.file_url ? "" : ' <span class="muted">(من غير رابط)</span>'}</span><span class="actions">${openLink(b.file_url, "فتح الكتاب")}${moveBtns("books", bkGroup, b.id, bi, s.books.length)}${editBtn("book:" + b.id)}${delBtn("books", b.id)}</span></li>`;
+                      return `<li data-search="${esc(b.title)}"><span>📖 ${esc(b.title)} (${esc(b.total_pages)} صفحة)${b.file_url ? "" : ' <span class="muted">(من غير رابط)</span>'}</span><span class="actions">${openLink(b.file_url, "فتح الكتاب")}${moveBtns("books", bkGroup, b.id, bi, s.books.length)}${editBtn("book:" + b.id)}${delBtn("books", b.id)}</span></li>`;
                     }).join("")}
-                    ${(s.tests || []).map(t => `<li><span>📝 اختبار: ${esc(t.title)}</span><span class="actions"><button class="btn small outline" data-goto-tests title="تعديل من تبويب الاختبارات">✏️</button>${delBtn("tests", t.id)}</span></li>`).join("")}
+                    ${(s.tests || []).map(t => `<li data-search="${esc(t.title)}"><span>📝 اختبار: ${esc(t.title)}</span><span class="actions"><button class="btn small outline" data-goto-tests title="تعديل من تبويب الاختبارات">✏️</button>${delBtn("tests", t.id)}</span></li>`).join("")}
                   </ul>
                 </div>`;
               }).join("")}
+            </div>
           </div>`;
         }).join("")
       }
+      </div>
     </div>`;
   }).join("");
+  bindTreeUi(el);
 
   const endpointMap = {
     stages: "/admin/content/stages/",

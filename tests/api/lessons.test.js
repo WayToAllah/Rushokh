@@ -81,6 +81,7 @@ describe("بيانات الدرس", () => {
     assert.equal(r.data.tests[0].id, testId);
     assert.equal(r.data.next.id, ep2Id);
     assert.equal(r.data.series_id, seriesId);
+    assert.ok(r.data.stage_id && r.data.subject_id, "المسار محتاج أرقام المرحلة والقسم عشان يبقى روابط");
     assert.ok(r.data.subject_name);
   });
 

@@ -64,7 +64,7 @@ test("صفحة الدرس بتبويباتها واختبار الحلقة وا�
   await expect(page.getByRole("tab", { name: /المناقشة/ })).toContainText("1");
 
   // الرجوع للمنهج: الحلقة خلصت
-  await page.locator(".crumbs a").click();
+  await page.locator(".crumbs a").first().click();
   await expect(page.locator("#lessonRoot")).toBeHidden();
   await expect(row).toContainText("✓ خلص بأسئلته");
 

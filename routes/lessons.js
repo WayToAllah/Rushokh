@@ -33,7 +33,8 @@ router.get("/:id", (req, res) => {
   const studentId = req.user.id;
 
   const ctx = db.prepare(
-    `SELECT s.id AS series_id, s.name AS series_name, subj.name AS subject_name, st.name AS stage_name
+    `SELECT s.id AS series_id, s.name AS series_name, subj.id AS subject_id, subj.name AS subject_name,
+            st.id AS stage_id, st.name AS stage_name
      FROM series s
      JOIN stage_subject ss ON ss.id = s.stage_subject_id
      JOIN subjects subj ON subj.id = ss.subject_id

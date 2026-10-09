@@ -66,6 +66,7 @@ test.describe("لوحة المشرف", () => {
 
     await page.reload();
     await page.locator('.tab-btn[data-tab="content-view"]').click();
+    await page.locator("#treeExpandAll").click();
     await page.locator(`[data-edit="episode:${ep.id}"]`).click();
     await page.locator("#editFields select").first().selectOption(String(to));
     await page.locator("#editForm").getByRole("button", { name: "حفظ التعديل" }).click();
@@ -147,4 +148,28 @@ test.describe("لوحة المشرف", () => {
     expect(current.name).toBe("التمهيدية");
     expect(current.progress.percent).toBe(0);
   });
+});
+
+test("عرض المحتوى: فتح وقفل كل مستوى، فتح/قفل الكل، والبحث", async ({ page }) => {
+  await page.locator('.tab-btn[data-tab="content-view"]').click();
+  await page.evaluate(() => localStorage.removeItem("rasokh_tree_open"));
+  await page.locator("#treeCollapseAll").click();
+  await expect(page.locator(".tree-stage:not(.collapsed)")).toHaveCount(0);
+  await page.locator("#treeExpandAll").click();
+  await expect(page.locator(".tree-series.collapsed")).toHaveCount(0);
+  const series = page.locator(".tree-series").first();
+  await series.locator(".tree-toggle").click();
+  await expect(series).toHaveClass(/collapsed/);
+  await expect(series.locator("li").first()).toBeHidden();
+
+  await page.locator("#treeCollapseAll").click();
+  await page.locator("#treeSearch").fill("سورة عبس");
+  const hit = page.locator("#contentTree li", { hasText: "تفسير سورة عبس" });
+  await expect(hit).toBeVisible();
+  await expect(page.locator("#contentTree li", { hasText: "تفسير سورة النبأ" })).toBeHidden();
+  await page.locator("#treeSearch").fill("كلمة مش موجودة خالص");
+  await expect(page.locator("#treeNoResults")).toBeVisible();
+  await page.locator("#treeSearch").fill("");
+  await expect(page.locator("#treeNoResults")).toBeHidden();
+  await page.locator("#treeExpandAll").click();
 });

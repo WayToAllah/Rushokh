@@ -452,6 +452,31 @@
   .viewer-foot{ font-size:.75rem; color:var(--ink-soft); margin:10px 0 0; }
   .viewer-foot a{ color:var(--teal-700); }
 
+  /* ===== البحث وفتح/قفل الكل ===== */
+  .cur-tools{ max-width:900px; margin:0 auto 14px; padding:0 16px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .cur-tools input{ flex:1; min-width:200px; padding:10px 14px; border:1px solid var(--line); border-radius:999px; font-family:inherit; font-size:.9rem; background:var(--bg-raised); }
+  .cur-tools input:focus{ outline:none; border-color:var(--teal-700); }
+  .pill-mini{ background:var(--bg-raised); border:1px solid var(--line); color:var(--teal-900); padding:8px 14px; border-radius:999px; font-size:.78rem; }
+  .pill-mini:hover{ border-color:var(--teal-700); }
+  .search-head{ font-size:.85rem; color:var(--ink-soft); margin:0 0 10px; }
+  .search-result{ display:flex; gap:12px; align-items:center; padding:12px 14px; background:var(--bg-raised); border:1px solid var(--line); border-radius:10px; margin-bottom:8px; text-decoration:none; color:inherit; }
+  .search-result:hover{ border-color:var(--teal-700); }
+  .search-result .ri{ font-size:1.1rem; }
+  .search-result .rt{ display:flex; flex-direction:column; gap:2px; }
+  .search-result strong{ color:var(--teal-900); font-size:.92rem; }
+  .search-result small{ color:var(--ink-soft); font-size:.74rem; }
+  .series-toggle{ background:none; border:0; padding:4px 0; display:flex; align-items:center; gap:8px; font:inherit; color:inherit; text-align:start; flex:1; min-width:0; }
+  .series-toggle .chev{ color:var(--gold); font-size:.8rem; transition:transform .15s; transform:rotate(90deg); }
+  .series-block.open .series-toggle .chev{ transform:none; }
+  .series-toggle .series-title::before{ content:none; }
+  .series-count{ font-size:.72rem; color:var(--ink-soft); margin-inline-start:auto; padding-inline-start:8px; white-space:nowrap; }
+  .series-block:not(.open) .series-items{ display:none; }
+  .series-block{ border:1px solid var(--line-soft); border-radius:10px; padding:8px 12px; }
+  .listen-badge{ font-size:.72rem; color:var(--teal-700); background:rgba(124,150,131,.18); padding:3px 10px; border-radius:999px; white-space:nowrap; }
+  .flash{ animation:flash 1.6s ease; }
+  @keyframes flash{ 0%,60%{ box-shadow:0 0 0 3px var(--gold-light); } 100%{ box-shadow:none; } }
+  .crumbs a{ white-space:nowrap; }
+
   /* ===== صفحة الدرس ===== */
   .lesson{ max-width:960px; margin:24px auto 0; padding:0 16px; }
   .lesson[hidden]{ display:none; }
@@ -512,6 +537,8 @@
     .lesson-panel{ padding:14px; }
     .nav-btn{ max-width:46vw; }
     .lesson-tabs{ gap:0; }
+    .cur-tools input{ flex:1 1 100%; }
+    .cur-tools .pill-mini{ flex:1; }
     .lesson-tabs button{ padding:10px 7px; font-size:.78rem; flex:1 0 auto; }
   }
   @media (prefers-reduced-motion: reduce){ .toast{ transition:none; } }
@@ -548,6 +575,12 @@
   <div class="sanad-chain" id="sanadChain"></div>
 </div>
 
+<div class="cur-tools" id="curTools">
+  <input type="search" id="curSearch" placeholder="🔍 ابحث عن درس أو كتاب أو سلسلة..." aria-label="بحث في المنهج" autocomplete="off">
+  <button type="button" class="pill-mini" id="curExpand">فتح الكل</button>
+  <button type="button" class="pill-mini" id="curCollapse">قفل الكل</button>
+</div>
+<main class="curriculum" id="searchResults" hidden></main>
 <main class="curriculum" id="curriculumRoot"></main>
 
 <!-- صفحة الدرس: بتظهر لما الرابط يبقى #lesson/رقم -->
@@ -638,6 +671,7 @@
 </div>
 
 <script src="logo.js"></script>
+<script src="search.js"></script>
 <script src="media.js"></script>
 <script src="password-eye.js"></script>
 <script src="dialog.js"></script>
@@ -654,6 +688,8 @@ try { authToken = localStorage.getItem("rasokh_token"); } catch (e) {}
 let curriculumData = null; // { student_name, stages: [...] }
 let viewStageId = null;    // المرحلة المعروضة حاليًا (الحالية افتراضيًا، أو مرحلة مكتملة اختارها الطالب)
 const openSubjects = new Set(); // الأقسام المفتوحة، عشان ما تتقفلش لما الصفحة تتحدث
+const openSeries = new Set();   // السلاسل المفتوحة
+const autoOpened = new Set();   // المراحل اللي فتحنا فيها أول قسم لوحدنا (مرة واحدة بس، عشان "قفل الكل" يفضل مقفول)
 
 /* ======================= الخانات الناقصة أو الغلط ======================= */
 // رسالة بتصميم الموقع بدل فقاعة المتصفح (public/forms.js)
@@ -951,11 +987,84 @@ function stageBanner(stage) {
 }
 
 // لو مفيش ولا قسم مفتوح في المرحلة المعروضة، نفتح أول قسم
+// أول مرة الطالب يشوف المرحلة: نفتح أول قسم، وأول سلسلة فيه لسه ما خلصتش
 function openFirstSubjectIfNone() {
   const stage = viewedStage();
-  if (!stage || !stage.subjects.length) return;
-  if (![...openSubjects].some(k => k.startsWith(stage.id + ":"))) {
-    openSubjects.add(stage.id + ":" + stage.subjects[0].id);
+  if (!stage || !stage.subjects.length || autoOpened.has(stage.id)) return;
+  autoOpened.add(stage.id);
+  if ([...openSubjects].some(k => k.startsWith(stage.id + ":"))) return;
+  const subject = stage.subjects[0];
+  openSubjects.add(stage.id + ":" + subject.id);
+  const series = subject.series.find(se => se.episodes.some(e => !e.done)) || subject.series[0];
+  if (series) openSeries.add(String(series.id));
+}
+
+// فتح الكل / قفل الكل للمرحلة المعروضة
+function setAllOpen(open) {
+  const stage = viewedStage();
+  if (!stage) return;
+  autoOpened.add(stage.id);
+  stage.subjects.forEach(subject => {
+    const key = stage.id + ":" + subject.id;
+    if (open) openSubjects.add(key); else openSubjects.delete(key);
+    subject.series.forEach(se => { if (open) openSeries.add(String(se.id)); else openSeries.delete(String(se.id)); });
+  });
+  renderCurriculum();
+}
+
+/* ======================= البحث في المنهج ======================= */
+// بيدوّر في كل المراحل المفتوحة للطالب بس (المقفولة ما بتوصلش من السيرفر أصلاً)
+function renderSearch() {
+  const q = document.getElementById("curSearch").value.trim();
+  const box = document.getElementById("searchResults");
+  const inLesson = currentView === "lesson";
+  if (!q || !curriculumData || inLesson) {
+    box.hidden = true;
+    box.innerHTML = "";
+    document.getElementById("curriculumRoot").hidden = inLesson;
+    return;
+  }
+  const found = [];
+  curriculumData.stages.filter(st => st.status !== "locked").forEach(st => st.subjects.forEach(sub => sub.series.forEach(se => {
+    const path = `${st.name} / ${sub.name}`;
+    const place = `#place/${st.id}/${sub.id}/${se.id}`;
+    if (RasokhSearch.matches(`${se.name} ${sub.name}`, q)) found.push({ icon: "◆", title: se.name, path, href: place, kind: "سلسلة" });
+    se.episodes.forEach(e => {
+      if (RasokhSearch.matches(e.title, q)) found.push({ icon: e.done ? "✅" : "▶️", title: e.title, path: `${path} / ${se.name}`, href: `#lesson/${e.id}`, kind: "درس" });
+      (e.tests || []).forEach(t => {
+        if (RasokhSearch.matches(t.title, q)) found.push({ icon: t.passed ? "✅" : "📝", title: t.title, path: `${path} / ${se.name} / ${e.title}`, href: `#lesson/${e.id}`, kind: "أسئلة درس" });
+      });
+    });
+    se.books.forEach(b => { if (RasokhSearch.matches(b.title, q)) found.push({ icon: "📖", title: b.title, path: `${path} / ${se.name}`, href: place, kind: "كتاب" }); });
+    se.tests.forEach(t => { if (RasokhSearch.matches(t.title, q)) found.push({ icon: t.passed ? "✅" : "📝", title: t.title, path: `${path} / ${se.name}`, href: place, kind: "اختبار" }); });
+  })));
+  document.getElementById("curriculumRoot").hidden = true;
+  box.hidden = false;
+  box.innerHTML = `
+    <p class="search-head">${found.length ? `${found.length} نتيجة` : "مفيش نتايج"} للبحث عن "${esc(q)}"</p>
+    ${found.slice(0, 100).map(r => `
+      <a class="search-result" href="${r.href}">
+        <span class="ri" aria-hidden="true">${r.icon}</span>
+        <span class="rt"><strong>${esc(r.title)}</strong><small>${esc(r.kind)} · ${esc(r.path)}</small></span>
+      </a>`).join("")}`;
+}
+
+// فتح مكان في المنهج (#place/مرحلة/قسم/سلسلة) — من مسار صفحة الدرس أو من نتايج البحث
+function goToPlace(stageId, subjectId, seriesId) {
+  const stage = curriculumData && curriculumData.stages.find(s => s.id === stageId && s.status !== "locked");
+  if (!stage) return;
+  autoOpened.add(stage.id);
+  viewStageId = stage.id;
+  if (subjectId) openSubjects.add(stage.id + ":" + subjectId);
+  if (seriesId) openSeries.add(String(seriesId));
+  renderSanad();
+  renderCurriculum();
+  const target = document.getElementById(seriesId ? "series-" + seriesId : subjectId ? `subj-${stage.id}-${subjectId}` : "curriculumRoot");
+  if (target) {
+    target.scrollIntoView({ block: "start" });
+    window.scrollBy(0, -90); // تحت الشريط اللي فوق
+    target.classList.add("flash");
+    setTimeout(() => target.classList.remove("flash"), 1600);
   }
 }
 
@@ -986,6 +1095,7 @@ function renderCurriculum() {
     const card = document.createElement("div");
     const openKey = stage.id + ":" + subject.id;
     card.className = "subject-card" + (openSubjects.has(openKey) ? " open" : "");
+    card.id = `subj-${stage.id}-${subject.id}`;
     const pct = subjectPercent(subject);
 
     const head = document.createElement("div");
@@ -1011,13 +1121,31 @@ function renderCurriculum() {
 
     subject.series.forEach(series => {
       const block = document.createElement("div");
-      block.className = "series-block";
+      const seriesKey = String(series.id);
+      block.className = "series-block" + (openSeries.has(seriesKey) ? " open" : "");
+      block.id = "series-" + series.id;
       const seriesHref = series.url ? safeHref(series.url) : null;
       const seriesBtn = !seriesHref ? ""
         : (window.RasokhMedia && RasokhMedia.embedFor(seriesHref))
           ? `<button class="series-play" data-view="${esc(seriesHref)}" data-title="${esc(series.name)}">▶️ تشغيل السلسلة كاملة</button>`
           : `<a class="series-play" href="${esc(seriesHref)}" target="_blank" rel="noopener noreferrer">▶️ تشغيل السلسلة كاملة</a>`;
-      block.innerHTML = `<div class="series-head"><div class="series-title">${esc(series.name)}</div>${seriesBtn}</div>`;
+      const epDone = series.episodes.filter(e => e.done).length;
+      block.innerHTML = `
+        <div class="series-head">
+          <button type="button" class="series-toggle" aria-expanded="${openSeries.has(seriesKey)}">
+            <span class="chev" aria-hidden="true">▾</span>
+            <span class="series-title">${esc(series.name)}</span>
+            <span class="series-count">${epDone} من ${series.episodes.length} حلقة</span>
+          </button>
+          ${seriesBtn}
+        </div>
+        <div class="series-items"></div>`;
+      const items = block.querySelector(".series-items");
+      block.querySelector(".series-toggle").addEventListener("click", (e) => {
+        const open = block.classList.toggle("open");
+        e.currentTarget.setAttribute("aria-expanded", String(open));
+        if (open) openSeries.add(seriesKey); else openSeries.delete(seriesKey);
+      });
 
       series.episodes.forEach(ep => {
         const row = document.createElement("div");
@@ -1034,11 +1162,9 @@ function renderCurriculum() {
         row.innerHTML = `
           <a class="item-icon link" href="${lessonHref}" title="افتح الدرس" aria-label="افتح الدرس: ${esc(ep.title)}">▶️</a>
           <div class="item-title"><a class="item-title-link" href="${lessonHref}">${esc(ep.title)}</a><span class="meta">${meta}</span></div>
-          <button class="tiny-btn ${ep.listened ? "done" : ""}" aria-pressed="${ep.listened ? "true" : "false"}"
-            title="${ep.listened ? "دوس تاني لو عايز تلغي إنها اتسمعت" : "دوس هنا بعد ما تسمع الحلقة"}">${ep.listened ? "✓ اتسمعت" : "علّمتها مسموعة"}</button>
+          ${ep.listened ? `<span class="listen-badge" title="علّمتها مسموعة من صفحة الدرس">✓ اتسمعت</span>` : ""}
         `;
-        row.querySelector(".tiny-btn").addEventListener("click", () => toggleEpisode(ep));
-        block.appendChild(row);
+        items.appendChild(row);
       });
 
       series.books.forEach(book => {
@@ -1057,10 +1183,10 @@ function renderCurriculum() {
         row.querySelector(".tiny-btn").addEventListener("click", () => {
           updateBookPage(book, row.querySelector("input").value);
         });
-        block.appendChild(row);
+        items.appendChild(row);
       });
 
-      series.tests.forEach(test => block.appendChild(testCtaElement(test)));
+      series.tests.forEach(test => items.appendChild(testCtaElement(test)));
 
       body.appendChild(block);
     });
@@ -1095,24 +1221,6 @@ function testCtaElement(test) {
   return cta;
 }
 
-/* ======================= تحديث الحلقة ======================= */
-async function toggleEpisode(ep) {
-  const newState = !ep.listened;
-  ep.listened = newState;
-  renderCurriculum();
-  try {
-    const result = await apiFetch("/progress/episode", {
-      method: "POST",
-      body: JSON.stringify({ episode_id: ep.id, listened: newState }),
-    });
-    if (!(await afterProgress(result))) await refreshProgressQuietly();
-  } catch (err) {
-    ep.listened = !newState;
-    renderCurriculum();
-    if (!handleAuthError(err)) toast(err.message);
-  }
-}
-
 /* ======================= تحديث صفحة الكتاب ======================= */
 async function updateBookPage(book, rawValue) {
   const previous = book.current_page;
@@ -1141,6 +1249,7 @@ async function refreshProgressQuietly() {
     curriculumData = await apiFetch("/curriculum");
     renderSanad();
     renderCurriculum();
+    renderSearch();
     if (lesson) await loadLesson(lesson.id, { keepTab: true });
   } catch (err) { handleAuthError(err); }
 }
@@ -1457,19 +1566,29 @@ async function route() {
   document.getElementById("lessonRoot").hidden = !isLesson;
   document.getElementById("curriculumRoot").hidden = isLesson;
   document.querySelector(".sanad-wrap").hidden = isLesson;
+  document.getElementById("curTools").hidden = isLesson;
   document.getElementById("btnCertificate").hidden = isLesson;
 
   if (isLesson) {
     currentView = "lesson";
+    renderSearch();
     await loadLesson(id);
-  } else {
-    const wasLesson = currentView === "lesson";
-    currentView = "curriculum";
-    lesson = null;
-    document.getElementById("lessonRoot").innerHTML = "";
-    document.title = "رسوخ | لوحة الطالب";
-    if (wasLesson) window.scrollTo(0, curriculumScroll);
+    return;
   }
+  const wasLesson = currentView === "lesson";
+  currentView = "curriculum";
+  lesson = null;
+  document.getElementById("lessonRoot").innerHTML = "";
+  document.title = "رسوخ | لوحة الطالب";
+  const place = location.hash.match(/^#place\/(\d+)(?:\/(\d+))?(?:\/(\d+))?$/);
+  if (place) {
+    document.getElementById("curSearch").value = "";
+    renderSearch();
+    goToPlace(Number(place[1]), place[2] ? Number(place[2]) : null, place[3] ? Number(place[3]) : null);
+    return;
+  }
+  renderSearch();
+  if (wasLesson) window.scrollTo(0, curriculumScroll);
 }
 
 async function loadLesson(id, { keepTab = false } = {}) {
@@ -1511,7 +1630,9 @@ function renderLesson() {
   root.innerHTML = `
     <nav class="crumbs" aria-label="مكان الدرس">
       <a href="#">→ رجوع للمنهج</a><span aria-hidden="true">·</span>
-      <span>${esc(L.stage_name)} / ${esc(L.subject_name)} / ${esc(L.series_name)}</span>
+      <a href="#place/${L.stage_id}">${esc(L.stage_name)}</a><span aria-hidden="true">/</span>
+      <a href="#place/${L.stage_id}/${L.subject_id}">${esc(L.subject_name)}</a><span aria-hidden="true">/</span>
+      <a href="#place/${L.stage_id}/${L.subject_id}/${L.series_id}">${esc(L.series_name)}</a>
     </nav>
     <h1>${esc(L.title)}</h1>
     <div class="lesson-meta">الدرس ${L.position} من ${L.count}${L.duration ? " · " + esc(L.duration) : ""}</div>
@@ -1748,6 +1869,14 @@ async function loadComments() {
 
 /* ======================= بداية الصفحة ======================= */
 window.addEventListener("hashchange", route);
+document.getElementById("curSearch").addEventListener("input", renderSearch);
+document.getElementById("curExpand").addEventListener("click", () => setAllOpen(true));
+document.getElementById("curCollapse").addEventListener("click", () => setAllOpen(false));
+// لما الطالب يرجع للصفحة بعد ما كان في تاب أو برنامج تاني: المنهج بيتحدّث لوحده (محتوى جديد، تصحيح المشرف...)
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden || !authToken || !curriculumData || document.querySelector(".overlay.show")) return;
+  refreshProgressQuietly();
+});
 if (authToken) {
   document.getElementById("loginOverlay").classList.remove("show");
   loadCurriculum().then(route);

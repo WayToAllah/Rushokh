@@ -12,19 +12,55 @@ test.describe("صفحة الطالب", () => {
   test("الطالب الجديد في التمهيدية، والمراحل الجاية مقفولة", async ({ page, request }) => {
     await openAsNewStudent(page, request);
     await expect(page.locator(".stage-banner")).toContainText("التمهيدية");
-    await expect(page.getByText("0 من 2 حلقة")).toBeVisible();
+    await expect(page.locator(".stage-banner")).toContainText("0 من 2 حلقة");
   });
 
-  test("زرار الحلقة واضح: 'علّمتها مسموعة' قبل، و'✓ اتسمعت' بعد، والنسبة بتتحدّث", async ({ page, request }) => {
+  test("الاستماع بيتعلّم من جوه الدرس بس، وبيظهر في المنهج بعد الرجوع والنسبة بتتحدّث", async ({ page, request }) => {
     await openAsNewStudent(page, request);
     const firstRow = page.locator(".item-row").first();
-    const btn = firstRow.getByRole("button").last();
+    await expect(firstRow.getByRole("button")).toHaveCount(0); // مفيش زرار استماع برّه
+    await expect(firstRow.locator(".listen-badge")).toHaveCount(0);
+    await firstRow.locator(".item-title-link").click();
+    const btn = page.locator("#lessonListen");
     await expect(btn).toHaveText("علّمتها مسموعة");
     await expect(btn).toHaveAttribute("aria-pressed", "false");
     await btn.click();
-    await expect(firstRow.getByRole("button").last()).toHaveText("✓ اتسمعت");
-    await expect(firstRow.getByRole("button").last()).toHaveAttribute("aria-pressed", "true");
-    await expect(page.getByText("1 من 2 حلقة")).toBeVisible();
+    await expect(page.locator("#lessonListen")).toHaveText("✓ اتسمعت");
+    await expect(page.locator("#lessonListen")).toHaveAttribute("aria-pressed", "true");
+    await page.locator(".crumbs a").first().click();
+    await expect(firstRow.locator(".listen-badge")).toHaveText("✓ اتسمعت");
+    await expect(page.locator(".stage-banner")).toContainText("1 من 2 حلقة");
+  });
+
+  test("البحث بيلاقي الدروس المفتوحة بس، وفتح وقفل الكل، ومسار الدرس بيفتح السلسلة", async ({ page, request }) => {
+    await openAsNewStudent(page, request);
+    const title = await page.locator(".item-title-link").first().textContent();
+    // مرحلة مقفولة: الطالب الجديد ما يلاقيش حاجة منها
+    await page.locator("#curSearch").fill("معرفة دين الاسلام");
+    await expect(page.locator("#searchResults")).toContainText("مفيش نتايج");
+    await page.locator("#curSearch").fill(title.slice(0, 6));
+    await expect(page.locator(".search-result").first()).toContainText(title);
+    await page.locator(".search-result").first().click();
+    await expect(page.locator("#lessonRoot h1")).toHaveText(title);
+
+    // المسار: دوسة على اسم السلسلة بترجّع للمنهج والسلسلة مفتوحة
+    const crumbs = page.locator(".crumbs a");
+    await crumbs.last().click();
+    await expect(page.locator("#lessonRoot")).toBeHidden();
+    await expect(page.locator("#curSearch")).toHaveValue("");
+    await expect(page.locator(".series-block.open").first()).toBeVisible();
+
+    await page.locator("#curCollapse").click();
+    await expect(page.locator(".subject-card.open")).toHaveCount(0);
+    await expect(page.locator(".series-block.open")).toHaveCount(0);
+    await page.locator("#curExpand").click();
+    await expect(page.locator(".subject-card.open").first()).toBeVisible();
+    await expect(page.locator(".series-block.open").first()).toBeVisible();
+    // السلسلة بتتقفل وتتفتح لوحدها
+    const series = page.locator(".series-block").first();
+    await series.locator(".series-toggle").click();
+    await expect(series).not.toHaveClass(/open/);
+    await expect(series.locator(".item-row").first()).toBeHidden();
   });
 
   test("حلقة ليها فيديو وكتاب ليه ملف: الدرس بيفتح في صفحته، والرجوع بيرجّع للمنهج من غير ما الحالة تتغير", async ({ page, request }) => {
@@ -44,9 +80,7 @@ test.describe("صفحة الطالب", () => {
     await expect(page.locator("#lessonPlayer iframe")).toBeVisible();
     await page.goBack();
     await expect(page.locator("#lessonRoot")).toBeHidden();
-    await expect(epRow().locator(".tiny-btn")).toHaveText("علّمتها مسموعة");
-    await epRow().locator(".tiny-btn").click();
-    await expect(epRow().locator(".tiny-btn")).toHaveText("✓ اتسمعت");
+    await expect(epRow().locator(".listen-badge")).toHaveCount(0);
 
     const bookRow = () => page.locator(".item-row", { hasText: book.title });
     await bookRow().locator("input").fill("7");
