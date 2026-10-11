@@ -5,6 +5,7 @@ const db = require("../db/database");
 const { signToken } = require("../middleware/auth");
 const { clientIp, createLimiter } = require("../lib/rate-limit");
 const sp = require("../lib/stage-progress");
+const GENDERS = ["male", "female"];
 const mailer = require("../lib/mailer");
 const { verification, passwordReset, codeError } = require("../lib/email-codes");
 
@@ -91,6 +92,12 @@ async function register(req, res) {
   let age = parseInt(req.body.age, 10);
   if (isNaN(age) || age < 5 || age > 120) age = null;
 
+  // النوع: ذكر أو أنثى (صفحة التسجيل بتطلبه)
+  const gender = req.body.gender === undefined || req.body.gender === null || req.body.gender === "" ? null : req.body.gender;
+  if (gender !== null && !GENDERS.includes(gender)) {
+    return res.status(400).json({ error: "اختار النوع: ذكر أو أنثى." });
+  }
+
   const existing = db.prepare(`SELECT id FROM students WHERE lower(email) = ?`).get(email);
   if (existing) {
     return res.status(409).json({ error: "هذا البريد الإلكتروني مسجل مسبقاً." });
@@ -100,9 +107,9 @@ async function register(req, res) {
   const hash = bcrypt.hashSync(password, 10);
   const needsVerify = mailer.enabled();
   const info = db.prepare(
-    `INSERT INTO students (full_name, email, phone, age, address, password_hash, current_stage_id, email_verified)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(full_name, email, cleanText(req.body.phone, 30), age, cleanText(req.body.address, 200), hash,
+    `INSERT INTO students (full_name, email, phone, age, gender, address, password_hash, current_stage_id, email_verified)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(full_name, email, cleanText(req.body.phone, 30), age, gender, cleanText(req.body.address, 200), hash,
         first ? first.id : null, needsVerify ? 0 : 1);
 
   registrations.hit(ip);
@@ -287,4 +294,4 @@ router.post("/login", login(["admin", "student"], "البريد الإلكترو
 // دخول المشرف بس (متساب للسكريبتات والاختبارات)
 router.post("/admin-login", login(["admin"], "بيانات دخول المشرف غير صحيحة."));
 
-module.exports = { router, MIN_PASSWORD };
+module.exports = { GENDERS, router, MIN_PASSWORD };

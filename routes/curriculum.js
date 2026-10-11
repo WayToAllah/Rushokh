@@ -84,7 +84,7 @@ router.get("/", requireAuth, requireRole("student"), (req, res) => {
     };
   });
 
-  res.json({ student_name: student.full_name, stages });
+  res.json({ student_name: student.full_name, gender: student.gender || null, stages });
 });
 
 module.exports = router;

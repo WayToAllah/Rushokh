@@ -106,13 +106,14 @@ router.get("/certificate/:stageId", (req, res) => {
   sp.advanceIfComplete(studentId); // يسجّل الإتمام لو المرحلة اكتملت ولسه ما اتسجلتش
   const progress = sp.stageProgress(studentId, stageId);
   const completion = sp.completionOf(studentId, stageId);
-  const student = db.prepare(`SELECT full_name FROM students WHERE id = ?`).get(studentId);
+  const student = db.prepare(`SELECT full_name, gender FROM students WHERE id = ?`).get(studentId);
 
   res.json({
     eligible: !!completion,
     percent: completion ? 100 : progress.percent,
     stage_name: stage.name,
     student_name: student ? student.full_name : null,
+    gender: student ? student.gender || null : null,
     total_episodes: progress.episodes_total,
     total_books: progress.books_total,
     total_tests: progress.tests_total,

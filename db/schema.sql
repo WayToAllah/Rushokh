@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS students (
   email           TEXT NOT NULL UNIQUE,
   phone           TEXT,
   age             INTEGER,
+  -- النوع: male (ذكر) | female (أنثى). فاضي للحسابات القديمة لحد ما الطالب يختار
+  gender          TEXT,
   address         TEXT,
   password_hash   TEXT NOT NULL,
   current_stage_id INTEGER,

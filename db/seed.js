@@ -178,9 +178,9 @@ function seed({ adminEmail = "admin@rasokh.test", adminPassword = "admin123", de
   if (demoStudent) {
     const studentHash = bcrypt.hashSync("student123", 10);
     const ahmedId = Number(run(
-      `INSERT INTO students (full_name, email, phone, age, address, password_hash, current_stage_id, email_verified)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
-      ["أحمد بن سالم العتيبي", "ahmed@rasokh.test", "0500000000", 22, "الرياض", studentHash, stageIds["الأولى"]]
+      `INSERT INTO students (full_name, email, phone, age, gender, address, password_hash, current_stage_id, email_verified)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+      ["أحمد بن سالم العتيبي", "ahmed@rasokh.test", "0500000000", 22, "male", "الرياض", studentHash, stageIds["الأولى"]]
     ).lastInsertRowid);
 
     // أحمد أتم التمهيدية بالكامل (عشان تظهر شهادتها في التجربة)

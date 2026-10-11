@@ -26,7 +26,7 @@ const uniqueEmail = prefix => `${prefix}${Date.now()}_${++n}@e2e.test`;
 async function apiRegister(request, fullName = "طالب متصفح") {
   const email = uniqueEmail("student");
   const password = "password123";
-  const r = await request.post("/api/auth/register", { data: { full_name: fullName, email, password } });
+  const r = await request.post("/api/auth/register", { data: { full_name: fullName, email, password, gender: "male" } });
   expect(r.status()).toBe(201);
   return { email, password, token: (await r.json()).token };
 }

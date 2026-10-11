@@ -4,7 +4,7 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const db = require("../db/database");
 const { requireAuth, requireRole } = require("../middleware/auth");
-const { MIN_PASSWORD } = require("./auth");
+const { MIN_PASSWORD, GENDERS } = require("./auth");
 
 const router = express.Router();
 router.use(requireAuth, requireRole("student"));
@@ -19,6 +19,13 @@ router.post("/password", (req, res) => {
     return res.status(400).json({ error: `كلمة المرور الجديدة يجب أن تكون ${MIN_PASSWORD} أحرف على الأقل.` });
   }
   db.prepare(`UPDATE students SET password_hash = ? WHERE id = ?`).run(bcrypt.hashSync(new_password, 10), me.id);
+  res.json({ ok: true });
+});
+
+// النوع (للحسابات القديمة اللي اتسجلت قبل ما الخانة تتضاف): { gender: "male" | "female" }
+router.post("/gender", (req, res) => {
+  if (!GENDERS.includes(req.body.gender)) return res.status(400).json({ error: "اختار النوع: ذكر أو أنثى." });
+  db.prepare(`UPDATE students SET gender = ? WHERE id = ?`).run(req.body.gender, req.user.id);
   res.json({ ok: true });
 });
 

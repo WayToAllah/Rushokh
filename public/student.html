@@ -629,6 +629,18 @@
   </div>
 </div>
 
+<!-- النوع: بيظهر مرة واحدة للحسابات اللي اتسجلت قبل ما خانة النوع تتضاف -->
+<div class="overlay" id="genderOverlay">
+  <div class="modal" style="max-width:360px; text-align:center;">
+    <h2>أكمل بياناتك</h2>
+    <p style="font-size:.9rem; color:var(--ink-soft); margin:0 0 16px;">اختار النوع عشان نكمّل بياناتك.</p>
+    <div style="display:flex; gap:10px;">
+      <button class="tiny-btn" style="flex:1; padding:12px; font-size:.95rem;" data-gender="male">ذكر</button>
+      <button class="tiny-btn" style="flex:1; padding:12px; font-size:.95rem;" data-gender="female">أنثى</button>
+    </div>
+  </div>
+</div>
+
 <!-- شاشة تحميل بسيطة أثناء جلب المنهج -->
 <div class="overlay" id="loadingOverlay">
   <div class="modal" style="max-width:280px; text-align:center;">
@@ -887,6 +899,7 @@ async function loadCurriculum() {
   try {
     curriculumData = await apiFetch("/curriculum");
     document.getElementById("studentNameLbl").textContent = curriculumData.student_name;
+    if (!curriculumData.gender) document.getElementById("genderOverlay").classList.add("show");
     const viewed = curriculumData.stages.find(s => s.id === viewStageId);
     if (!viewed || viewed.status === "locked") viewStageId = null;
     renderSanad();
@@ -1449,9 +1462,9 @@ async function openCertificate() {
       <div class="seal-stamp">رسوخ</div>
       <div class="kicker">شهادة إتمام</div>
       <h1>مرحلة ${esc(cert.stage_name)}</h1>
-      <p class="body-txt">تشهد أكاديمية <strong>رسوخ</strong> للعلم الشرعي بأن الطالب</p>
+      <p class="body-txt">تشهد أكاديمية <strong>رسوخ</strong> للعلم الشرعي بأن ${cert.gender === "female" ? "الطالبة" : "الطالب"}</p>
       <div class="name">${esc(cert.student_name)}</div>
-      <p class="body-txt">قد أتمّ بحمد الله جميع متطلبات هذه المرحلة من حلقات وكتب واختبارات بتاريخ ${esc(date)}.</p>
+      <p class="body-txt">قد ${cert.gender === "female" ? "أتمّت" : "أتمّ"} بحمد الله جميع متطلبات هذه المرحلة من حلقات وكتب واختبارات بتاريخ ${esc(date)}.</p>
       <div class="stats-row">
         <div><div class="n">${cert.total_episodes}</div><div class="l">حلقة</div></div>
         <div><div class="n">${cert.total_books}</div><div class="l">كتاب</div></div>
@@ -1472,7 +1485,7 @@ document.querySelectorAll("[data-close]").forEach(btn => {
 });
 document.querySelectorAll(".overlay").forEach(ov => {
   ov.addEventListener("click", (e) => {
-    if (e.target === ov && ov.id !== "loginOverlay" && ov.id !== "loadingOverlay") ov.classList.remove("show");
+    if (e.target === ov && ov.id !== "loginOverlay" && ov.id !== "loadingOverlay" && ov.id !== "genderOverlay") ov.classList.remove("show");
   });
 });
 
@@ -1852,6 +1865,13 @@ async function loadComments() {
 
 /* ======================= بداية الصفحة ======================= */
 window.addEventListener("hashchange", route);
+document.querySelectorAll("[data-gender]").forEach(btn => btn.addEventListener("click", async () => {
+  try {
+    await apiFetch("/account/gender", { method: "POST", body: JSON.stringify({ gender: btn.dataset.gender }) });
+    if (curriculumData) curriculumData.gender = btn.dataset.gender;
+    closeOverlay("genderOverlay");
+  } catch (err) { if (!handleAuthError(err)) toast(err.message); }
+}));
 document.getElementById("curSearch").addEventListener("input", renderSearch);
 // لما الطالب يرجع للصفحة بعد ما كان في تاب أو برنامج تاني: المنهج بيتحدّث لوحده (محتوى جديد، تصحيح المشرف...)
 document.addEventListener("visibilitychange", () => {

@@ -4,7 +4,7 @@ const { test, expect, uniqueEmail, mailboxCode } = require("../helpers");
 // طالب متأكد بريده، متعمل من الـ API
 async function verifiedStudent(request) {
   const email = uniqueEmail("mail");
-  const r = await request.post("/api/auth/register", { data: { full_name: "طالب إيميل", email, password: "old-password" } });
+  const r = await request.post("/api/auth/register", { data: { full_name: "طالب إيميل", email, password: "old-password", gender: "female" } });
   expect((await r.json()).needs_verification).toBe(true);
   const code = await mailboxCode(email, "verify");
   expect((await request.post("/api/auth/verify-email", { data: { email, code } })).status()).toBe(200);
@@ -17,6 +17,7 @@ test.describe("تأكيد البريد", () => {
     await page.goto("/#register");
     await page.locator("#regName").fill("طالب جديد");
     await page.locator("#regEmail").fill(email);
+    await page.locator("#regGender").selectOption("male");
     await page.locator("#regPassword").fill("password123");
     await page.getByRole("button", { name: "تسجيل", exact: true }).click();
     await expect(page.locator("#verifyCard")).toBeVisible();

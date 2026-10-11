@@ -1399,11 +1399,12 @@ async function loadStudents() {
       `<option value="${esc(st.id)}"${st.id === sel ? " selected" : ""}>${esc(st.name)}</option>`).join("");
     wrap.innerHTML = `
       <div class="table-wrap"><table>
-        <thead><tr><th>الاسم</th><th>البريد</th><th>الهاتف</th><th>المرحلة</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+        <thead><tr><th>الاسم</th><th>النوع</th><th>البريد</th><th>الهاتف</th><th>المرحلة</th><th>الحالة</th><th>إجراءات</th></tr></thead>
         <tbody>
           ${students.map(s => `
             <tr>
               <td>${esc(s.full_name)}</td>
+              <td>${s.gender === "female" ? "أنثى" : s.gender === "male" ? "ذكر" : "—"}</td>
               <td dir="ltr" style="text-align:right;">${esc(s.email)}</td>
               <td dir="ltr" style="text-align:right;">${esc(s.phone || "—")}</td>
               <td><select class="stage-select" data-stage-for="${esc(s.id)}" aria-label="مرحلة الطالب">${stageOpts(s.current_stage_id)}</select></td>

@@ -255,6 +255,12 @@
       <input type="text" id="regName" required autocomplete="name">
       <label for="regEmail">البريد الإلكتروني <span class="req" aria-hidden="true">*</span></label>
       <input type="email" id="regEmail" required autocomplete="email">
+      <label for="regGender">النوع <span class="req" aria-hidden="true">*</span></label>
+      <select id="regGender" required>
+        <option value="">اختار</option>
+        <option value="male">ذكر</option>
+        <option value="female">أنثى</option>
+      </select>
       <div class="row-2">
         <div>
           <label for="regPhone">رقم الهاتف <span class="opt">(اختياري)</span></label>
@@ -468,6 +474,7 @@ document.getElementById("registerForm").addEventListener("submit", async (e) => 
     email: document.getElementById("regEmail").value.trim(),
     phone: document.getElementById("regPhone").value.trim(),
     age: document.getElementById("regAge").value ? parseInt(document.getElementById("regAge").value, 10) : null,
+    gender: document.getElementById("regGender").value,
     address: document.getElementById("regAddress").value.trim(),
     password: document.getElementById("regPassword").value,
   };

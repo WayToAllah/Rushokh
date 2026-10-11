@@ -93,7 +93,7 @@ router.get("/students.xlsx", async (req, res, next) => {
       return res.status(503).json({ error: "مكتبة Excel لسه بتتسطّب، حاول تاني بعد دقيقة." });
     }
     const students = db.prepare(
-      `SELECT id, full_name, email, phone, age, address, is_blocked, created_at FROM students ORDER BY full_name`
+      `SELECT id, full_name, email, phone, age, gender, address, is_blocked, created_at FROM students ORDER BY full_name`
     ).all();
     const stageIds = sp.orderedStageIds();
     const stageName = Object.fromEntries(db.prepare(`SELECT id, name FROM stages`).all().map(s => [s.id, s.name]));
@@ -108,6 +108,7 @@ router.get("/students.xlsx", async (req, res, next) => {
       { header: "الطالب", key: "name", width: 28 },
       { header: "البريد الإلكتروني", key: "email", width: 30 },
       { header: "الهاتف", key: "phone", width: 16 },
+      { header: "النوع", key: "gender", width: 8 },
       { header: "العمر", key: "age", width: 8 },
       { header: "العنوان", key: "address", width: 20 },
       { header: "الحالة", key: "status", width: 10 },
@@ -154,6 +155,7 @@ router.get("/students.xlsx", async (req, res, next) => {
         name: st.full_name,
         email: st.email,
         phone: st.phone || "",
+        gender: st.gender === "female" ? "أنثى" : st.gender === "male" ? "ذكر" : "",
         age: st.age || "",
         address: st.address || "",
         status: st.is_blocked ? "موقوف" : "فعّال",

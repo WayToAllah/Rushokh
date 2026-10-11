@@ -18,7 +18,7 @@ test.describe("الصفحة الرئيسية", () => {
 
   test("الخانات الإجبارية عليها علامة، والاختيارية مكتوب جنبها (اختياري)", async ({ page }) => {
     await page.goto("/#register");
-    for (const id of ["regName", "regEmail", "regPassword"]) {
+    for (const id of ["regName", "regEmail", "regGender", "regPassword"]) {
       await expect(page.locator(`label[for="${id}"] .req`)).toHaveText("*");
     }
     for (const id of ["regPhone", "regAge", "regAddress"]) {
@@ -54,8 +54,25 @@ test.describe("الصفحة الرئيسية", () => {
     await page.locator("#regEmail").fill(email);
     await page.locator("#regPassword").fill("password123");
     await page.getByRole("button", { name: "تسجيل", exact: true }).click();
+    await expect(page.locator("#registerError")).toContainText("النوع"); // النوع إجباري
+    await page.locator("#regGender").selectOption("male");
+    await page.getByRole("button", { name: "تسجيل", exact: true }).click();
     await expect(page).toHaveURL(/student\.html/);
     await expect(page.locator("#studentNameLbl")).toHaveText("عبد الله التجربة");
+    await expect(page.locator("#genderOverlay")).toBeHidden();
+  });
+
+  test("حساب قديم من غير نوع: بيتسأل مرة واحدة بعد الدخول", async ({ page, request }) => {
+    const email = uniqueEmail("old");
+    const r = await request.post("/api/auth/register", { data: { full_name: "طالبة قديمة", email, password: "password123" } });
+    expect(r.status()).toBe(201);
+    await loginViaUi(page, email, "password123");
+    await expect(page.locator("#genderOverlay")).toBeVisible();
+    await page.locator('[data-gender="female"]').click();
+    await expect(page.locator("#genderOverlay")).toBeHidden();
+    await page.reload();
+    await expect(page.locator("#studentNameLbl")).toHaveText("طالبة قديمة");
+    await expect(page.locator("#genderOverlay")).toBeHidden();
   });
 
   test("نفس خانة الدخول بتودّي المشرف للوحة المشرف والطالب لصفحته", async ({ page }) => {

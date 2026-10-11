@@ -39,6 +39,7 @@ addColumnIfMissing("questions", "type", "TEXT NOT NULL DEFAULT 'mcq'");
 addColumnIfMissing("questions", "points", "INTEGER NOT NULL DEFAULT 1");
 addColumnIfMissing("questions", "answer_key", "TEXT");
 addColumnIfMissing("student_test_attempts", "status", "TEXT NOT NULL DEFAULT 'graded'");
+addColumnIfMissing("students", "gender", "TEXT");
 addColumnIfMissing("episodes", "summary", "TEXT");
 addColumnIfMissing("episodes", "summary_url", "TEXT");
 addColumnIfMissing("tests", "episode_id", "INTEGER REFERENCES episodes(id) ON DELETE CASCADE");
