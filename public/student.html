@@ -376,6 +376,29 @@
     padding:9px 0; border-bottom:1px solid var(--line-soft); font-size:.85rem;
   }
   .report-list li:last-child{border-bottom:none;}
+  .report-list li.done{color:var(--ink-soft);}
+  .series-progress{
+    background:var(--bg); border:1px solid var(--line); border-radius:14px;
+    padding:16px; margin-bottom:14px;
+  }
+  .series-progress .sp-head{display:flex; justify-content:space-between; align-items:flex-end; gap:10px;}
+  .series-progress .sp-name{font-family:'Amiri', serif; font-size:1.2rem; font-weight:700; color:var(--teal-900); line-height:1.4;}
+  .series-progress .sp-subj{font-size:.75rem; color:var(--ink-soft);}
+  .series-progress .sp-pct{font-family:'Amiri', serif; font-size:1.9rem; font-weight:700; color:var(--teal-700); line-height:1; white-space:nowrap;}
+  .series-progress.full .sp-pct{color:#2f7d4f;}
+  .sp-bar{height:22px; background:var(--line-soft); border-radius:999px; overflow:hidden; margin:12px 0 8px; box-shadow:inset 0 1px 3px rgba(0,0,0,.08);}
+  .sp-fill{
+    height:100%; width:0; border-radius:999px;
+    background:linear-gradient(to left, var(--teal-700), #c9a24a);
+    transition:width 1s ease;
+  }
+  .series-progress.full .sp-fill{background:linear-gradient(to left, #2f7d4f, #4caf72);}
+  .sp-meta{font-size:.78rem; color:var(--ink-soft); display:flex; flex-wrap:wrap; gap:4px 14px;}
+  .sp-cheer{font-size:.82rem; color:var(--teal-700); margin-top:6px;}
+  .series-progress details{margin-top:8px;}
+  .series-progress summary{cursor:pointer; font-size:.8rem; color:var(--teal-700);}
+  .overall-progress{text-align:center; margin-bottom:18px;}
+  .overall-progress .sp-bar{height:28px;}
 
   /* Certificate modal */
   .certificate{
@@ -1410,18 +1433,44 @@ async function openReport() {
     return;
   }
 
-  const li = i => `<li>${i.type === "episode" ? "▶️" : "📖"} ${esc(i.title)} <span style="color:var(--ink-soft)">— ${esc(i.context)}</span></li>`;
+  const cheer = p => p >= 100 ? "🎉 ما شاء الله، أتممت السلسلة!"
+    : p >= 75 ? "💪 قربت جدًا، كمّل!"
+    : p >= 50 ? "🌱 عدّيت النص، بارك الله فيك"
+    : p > 0 ? "✨ بداية طيبة، استمر"
+    : "ابدأ أول حلقة 👈";
+  const series = report.series || [];
+  const overall = series.length ? Math.floor(series.reduce((a, x) => a + x.percent, 0) / series.length) : 0;
+  const card = sr => {
+    const meta = [];
+    if (sr.episodes_total) meta.push(`▶️ ${sr.episodes_done} من ${sr.episodes_total} حلقة`);
+    if (sr.books_total) meta.push(`📖 ${sr.books_done} من ${sr.books_total} كتاب`);
+    if (sr.tests_total) meta.push(`📝 ${sr.tests_passed} من ${sr.tests_total} اختبار`);
+    const items = sr.items.map(i => `<li class="${i.done ? "done" : ""}">${i.done ? "✅" : (i.type === "episode" ? "▶️" : "📖")} ${esc(i.title)}${i.type === "book" && !i.done ? ` <span style="color:var(--ink-soft)">— صفحة ${i.current_page} من ${i.total_pages}</span>` : ""}</li>`).join("");
+    return `
+      <div class="series-progress ${sr.percent >= 100 ? "full" : ""}">
+        <div class="sp-head">
+          <div><div class="sp-name">${esc(sr.name)}</div><div class="sp-subj">${esc(sr.subject_name)}</div></div>
+          <div class="sp-pct">${sr.percent}%</div>
+        </div>
+        <div class="sp-bar"><div class="sp-fill" data-w="${sr.percent}"></div></div>
+        <div class="sp-meta">${meta.map(m => `<span>${m}</span>`).join("")}</div>
+        <div class="sp-cheer">${cheer(sr.percent)}</div>
+        ${items ? `<details><summary>عرض التفاصيل</summary><ul class="report-list">${items}</ul></details>` : ""}
+      </div>`;
+  };
   body.innerHTML = `
     <h2>📊 تقريري — مرحلة ${esc(report.stage_name || "")}</h2>
-    <div class="report-stats">
-      <div class="stat-card"><div class="num">${report.completed.length}</div><div class="lbl">عنصر مكتمل</div></div>
-      <div class="stat-card"><div class="num">${report.in_progress.length}</div><div class="lbl">عنصر قيد الدراسة</div></div>
+    <div class="overall-progress">
+      <div class="sp-pct" style="font-family:'Amiri', serif; font-size:2.4rem; font-weight:700; color:var(--teal-900);">${overall}%</div>
+      <div class="sp-bar"><div class="sp-fill" data-w="${overall}"></div></div>
+      <div style="font-size:.8rem; color:var(--ink-soft);">إنجازك في المرحلة · ${report.completed.length} عنصر مكتمل من ${report.completed.length + report.in_progress.length}</div>
     </div>
-    <h3 style="font-size:1rem; color:var(--teal-700);">✅ تم الانتهاء منه</h3>
-    <ul class="report-list">${report.completed.map(li).join("") || "<li>لا يوجد بعد</li>"}</ul>
-    <h3 style="font-size:1rem; color:var(--terracotta); margin-top:16px;">⏳ قيد الدراسة</h3>
-    <ul class="report-list">${report.in_progress.map(li).join("") || "<li>لا يوجد</li>"}</ul>
+    ${series.map(card).join("") || `<p style="text-align:center; color:var(--ink-soft);">لا توجد سلاسل في هذه المرحلة بعد</p>`}
   `;
+  // تحريك الأشرطة بعد الرسم
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    body.querySelectorAll(".sp-fill").forEach(el => { el.style.width = Math.max(0, Math.min(100, Number(el.dataset.w))) + "%"; });
+  }));
 }
 
 /* ======================= شهادة المرحلة المعروضة ======================= */

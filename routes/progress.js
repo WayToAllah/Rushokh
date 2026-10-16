@@ -56,7 +56,7 @@ router.get("/me/report", (req, res) => {
   if (!stage) return res.json({ completed: [], in_progress: [] });
 
   const episodes = db.prepare(
-    `SELECT e.id, e.title, s.name AS series_name, subj.name AS subject_name,
+    `SELECT e.id, e.title, e.series_id, s.name AS series_name, subj.name AS subject_name,
             CASE WHEN COALESCE(p.listened, 0) = 1 AND NOT EXISTS (
               -- الحلقة ما تتحسبش خلصت لو عليها اختبار لسه ما اتنجحش فيه
               SELECT 1 FROM tests t WHERE t.episode_id = e.id
@@ -68,11 +68,12 @@ router.get("/me/report", (req, res) => {
      JOIN stage_subject ss ON ss.id = s.stage_subject_id
      JOIN subjects subj ON subj.id = ss.subject_id
      LEFT JOIN student_episode_progress p ON p.episode_id = e.id AND p.student_id = ?
-     WHERE ss.stage_id = ?`
+     WHERE ss.stage_id = ?
+     ORDER BY e.order_index, e.id`
   ).all(studentId, stage.id);
 
   const books = db.prepare(
-    `SELECT b.id, b.title, b.total_pages, subj.name AS subject_name,
+    `SELECT b.id, b.title, b.series_id, b.total_pages, subj.name AS subject_name,
             COALESCE(p.current_page, 0) AS current_page
      FROM books b
      JOIN series s ON s.id = b.series_id
@@ -92,7 +93,52 @@ router.get("/me/report", (req, res) => {
     ...books.filter(b => b.current_page < b.total_pages).map(b => ({ type: "book", title: b.title, context: `${b.subject_name} — صفحة ${b.current_page} من ${b.total_pages}` })),
   ];
 
-  res.json({ stage_name: stage.name, completed, in_progress });
+  // ---- التقدّم لكل سلسلة: كل حلقة = وحدة، كل كتاب = وحدة بنسبة صفحاته، كل اختبار على السلسلة = وحدة ----
+  const seriesRows = db.prepare(
+    `SELECT s.id, s.name, subj.name AS subject_name
+     FROM series s
+     JOIN stage_subject ss ON ss.id = s.stage_subject_id
+     JOIN subjects subj ON subj.id = ss.subject_id
+     WHERE ss.stage_id = ?
+     ORDER BY ss.order_index, ss.id, s.order_index, s.id`
+  ).all(stage.id);
+  const seriesTests = db.prepare(
+    `SELECT t.series_id,
+            EXISTS (SELECT 1 FROM student_test_attempts a WHERE a.test_id = t.id AND a.student_id = ? AND a.passed = 1) AS passed
+     FROM tests t
+     JOIN series s ON s.id = t.series_id
+     JOIN stage_subject ss ON ss.id = s.stage_subject_id
+     WHERE ss.stage_id = ? AND t.episode_id IS NULL
+       AND EXISTS (SELECT 1 FROM questions q WHERE q.test_id = t.id)`
+  ).all(studentId, stage.id);
+
+  const series = seriesRows.map(sr => {
+    const eps = episodes.filter(e => e.series_id === sr.id);
+    const bks = books.filter(b => b.series_id === sr.id && b.total_pages > 0);
+    const tsts = seriesTests.filter(t => t.series_id === sr.id);
+    const total = eps.length + bks.length + tsts.length;
+    const done = eps.filter(e => e.listened).length
+      + bks.reduce((sum, b) => sum + Math.min(1, b.current_page / b.total_pages), 0)
+      + tsts.filter(t => t.passed).length;
+    return {
+      id: sr.id,
+      name: sr.name,
+      subject_name: sr.subject_name,
+      percent: total ? Math.floor((done / total) * 100) : 0,
+      episodes_done: eps.filter(e => e.listened).length,
+      episodes_total: eps.length,
+      books_done: bks.filter(b => b.current_page >= b.total_pages).length,
+      books_total: bks.length,
+      tests_passed: tsts.filter(t => t.passed).length,
+      tests_total: tsts.length,
+      items: [
+        ...eps.map(e => ({ type: "episode", title: e.title, done: !!e.listened })),
+        ...bks.map(b => ({ type: "book", title: b.title, done: b.current_page >= b.total_pages, current_page: b.current_page, total_pages: b.total_pages })),
+      ],
+    };
+  }).filter(x => x.items.length || x.tests_total);
+
+  res.json({ stage_name: stage.name, completed, in_progress, series });
 });
 
 // ---------- شهادة مرحلة ----------

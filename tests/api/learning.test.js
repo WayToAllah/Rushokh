@@ -112,6 +112,11 @@ describe("التقدم", () => {
     assert.equal(rep.stage_name, "التمهيدية");
     assert.deepEqual(rep.completed.map(x => x.title), [series.episodes[0].title]);
     assert.ok(rep.in_progress.some(x => x.title === series.books[0].title && /صفحة 5/.test(x.context)));
+    const sr = rep.series.find(x => x.id === series.id);
+    assert.ok(sr, "السلسلة موجودة في التقرير");
+    assert.equal(sr.episodes_done, 1);
+    assert.ok(sr.percent > 0 && sr.percent < 100, `نسبة السلسلة: ${sr.percent}`);
+    assert.ok(rep.series.filter(x => x.id !== series.id).every(x => x.percent === 0));
   });
 });
 

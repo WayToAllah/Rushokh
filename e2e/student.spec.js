@@ -116,3 +116,21 @@ test.describe("صفحة الطالب", () => {
     expect(nativeDialog).toBe(false);
   });
 });
+
+test.describe("تقرير الطالب", () => {
+  test("بيتعرض بالسلاسل وتحت كل سلسلة شريط نسبة", async ({ page, request }) => {
+    await openAsNewStudent(page, request);
+    await page.locator(".item-row").first().locator(".item-title-link").click();
+    await page.locator("#lessonListen").click();
+    await expect(page.locator("#lessonListen")).toHaveText("✓ اتسمعت");
+    await page.locator(".crumbs a").first().click();
+    await page.locator("#btnReport").click();
+    const card = page.locator(".series-progress").first();
+    await expect(card.locator(".sp-name")).not.toBeEmpty();
+    await expect(card.locator(".sp-pct")).not.toHaveText("0%");
+    await expect(card.locator(".sp-bar .sp-fill")).toBeVisible();
+    await expect(card).toContainText("1 من 2 حلقة");
+    if (process.env.REPORT_SHOT) { await page.waitForTimeout(1300); await page.locator(".series-progress details summary").first().click(); }
+    if (process.env.REPORT_SHOT) await page.screenshot({ path: process.env.REPORT_SHOT });
+  });
+});
